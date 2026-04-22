@@ -17,4 +17,7 @@ public interface IResumeService
     Task<IList<ResumeDto>> GetPublicResumesAsync();
     Task IncrementViewCountAsync(int resumeId);
     Task<IList<ResumeDto>> GetResumesByTemplateAsync(int templateId);
+    Task ChangeTemplateAsync(int resumeId, int userId, int templateId);
+    Task<ResumeDto?> GetResumeWithSectionsAsync(int resumeId);
+    Task EnforceResumeLimitAsync(int userId, SubscriptionPlan plan);
 }

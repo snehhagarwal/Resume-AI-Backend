@@ -17,4 +17,5 @@ public interface ISectionService
     Task<IList<SectionDto>> BulkUpdateSectionsAsync(BulkUpdateSectionsRequest request);
     Task MarkAsAiGeneratedAsync(int sectionId);
     Task<int> CountSectionsByResumeAsync(int resumeId);
+    Task<SectionDto> CopySectionAsync(int sectionId, int targetResumeId);
 }

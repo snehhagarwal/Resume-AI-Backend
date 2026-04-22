@@ -9,6 +9,7 @@ public interface IAuthService
     Task<AuthResponse> RegisterAsync(RegisterRequest request);
     Task<AuthResponse> LoginAsync(LoginRequest request);
     Task LogoutAsync(int userId);
+    Task LogoutAllAsync(int userId);
     Task<UserDto?> GetUserByIdAsync(int userId);
     Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileRequest request);
     Task ChangePasswordAsync(int userId, ChangePasswordRequest request);
@@ -29,4 +30,5 @@ public interface IAuthService
     /// <param name="email">Email claim from the external identity.</param>
     /// <param name="fullName">Display-name claim from the external identity.</param>
     Task<AuthResponse> OAuthLoginAsync(AuthProvider provider, string email, string fullName);
+    Task SyncOAuthProfileAsync(int userId, string fullName, string email);
 }

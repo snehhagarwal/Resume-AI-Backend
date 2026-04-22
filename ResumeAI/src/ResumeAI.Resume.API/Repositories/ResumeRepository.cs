@@ -66,4 +66,7 @@ public class ResumeRepository(ResumeDbContext db) : IResumeRepository
 
     public Task DeleteByResumeIdAsync(int resumeId)
         => db.Resumes.Where(r => r.ResumeId == resumeId).ExecuteDeleteAsync();
+
+    public Task<ResumeRecord?> FindWithSectionsAsync(int resumeId)
+        => db.Resumes.FirstOrDefaultAsync(r => r.ResumeId == resumeId);
 }

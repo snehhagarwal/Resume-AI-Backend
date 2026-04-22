@@ -114,6 +114,26 @@ public class SectionService(ISectionRepository sectionRepo) : ISectionService
     public Task<int> CountSectionsByResumeAsync(int resumeId)
         => sectionRepo.CountByResumeIdAsync(resumeId);
 
+    public async Task<SectionDto> CopySectionAsync(int sectionId, int targetResumeId)
+    {
+        var original = await sectionRepo.FindBySectionIdAsync(sectionId)
+                       ?? throw new KeyNotFoundException("Section not found.");
+        
+        var copy = new ResumeSection
+        {
+            ResumeId = targetResumeId,
+            SectionType = original.SectionType,
+            Title = original.Title,
+            Content = original.Content,
+            DisplayOrder = original.DisplayOrder,
+            IsVisible = original.IsVisible,
+            AiGenerated = original.AiGenerated
+        };
+        
+        var saved = await sectionRepo.AddAsync(copy);
+        return MapToDto(saved);
+    }
+
     private static SectionDto MapToDto(ResumeSection s) =>
         new(s.SectionId, s.ResumeId, s.SectionType, s.Title,
             s.Content, s.DisplayOrder, s.IsVisible, s.AiGenerated,

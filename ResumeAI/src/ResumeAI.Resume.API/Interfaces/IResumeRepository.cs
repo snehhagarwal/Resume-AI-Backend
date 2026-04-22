@@ -17,4 +17,5 @@ public interface IResumeRepository
     Task UpdateAtsScoreAsync(int resumeId, int score);
     Task IncrementViewCountAsync(int resumeId);
     Task DeleteByResumeIdAsync(int resumeId);
+    Task<ResumeRecord?> FindWithSectionsAsync(int resumeId);
 }

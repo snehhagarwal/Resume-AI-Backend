@@ -2,18 +2,18 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using ResumeAI.Resume.API.Data;
-using ResumeAI.Resume.API.Interfaces;
-using ResumeAI.Resume.API.Repositories;
-using ResumeAI.Resume.API.Services;
+using ResumeAI.Template.API.Data;
+using ResumeAI.Template.API.Repositories;
+using ResumeAI.Template.API.Services;
+using ResumeAI.Template.API.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<ResumeDbContext>(opt =>
-    opt.UseNpgsql(builder.Configuration.GetConnectionString("ResumeDb")));
+builder.Services.AddDbContext<TemplateDbContext>(opt =>
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("TemplateDb")));
 
-builder.Services.AddScoped<IResumeRepository, ResumeRepository>();
-builder.Services.AddScoped<IResumeService, ResumeService>();
+builder.Services.AddScoped<ITemplateRepository, TemplateRepository>();
+builder.Services.AddScoped<ITemplateService, TemplateService>();
 
 var jwtSecret = builder.Configuration["Jwt:Secret"]!;
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -31,11 +31,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization(opts =>
-{
-    opts.AddPolicy("PremiumOnly", p => p.RequireClaim("plan", "PREMIUM"));
-});
-
+builder.Services.AddAuthorization();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -44,15 +40,16 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new() { Title = "ResumeAI Resume API", Version = "v1" });
+    c.SwaggerDoc("v1", new() { Title = "ResumeAI Template API", Version = "v1" });
     c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Name = "Authorization",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
         Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Bearer {token}\""
     });
-
     c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
     {
         {
@@ -73,8 +70,9 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<ResumeDbContext>();
+    var db = scope.ServiceProvider.GetRequiredService<TemplateDbContext>();
     db.Database.Migrate();
+    DbInitializer.SeedAsync(db).Wait();
 }
 
 if (app.Environment.IsDevelopment())
