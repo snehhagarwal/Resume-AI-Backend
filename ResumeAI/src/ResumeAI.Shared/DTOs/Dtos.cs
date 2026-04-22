@@ -79,7 +79,9 @@ public record AddSectionRequest(
 public record UpdateSectionRequest(
     string Title,
     string Content,
-    bool IsVisible);
+    int DisplayOrder,
+    bool IsVisible,
+    bool? AiGenerated = null);
 
 public record SectionDto(
     int SectionId,
@@ -97,7 +99,13 @@ public record ReorderSectionsRequest(IList<int> OrderedSectionIds);
 
 public record BulkUpdateSectionsRequest(IList<UpdateSectionItem> Sections);
 
-public record UpdateSectionItem(int SectionId, string Title, string Content, bool IsVisible);
+public record UpdateSectionItem(
+    int SectionId,
+    string Title,
+    string Content,
+    int DisplayOrder,
+    bool IsVisible,
+    bool? AiGenerated = null);
 
 // ─── Template DTOs ──────────────────────────────────────────────
 public record CreateTemplateRequest(

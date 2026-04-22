@@ -12,7 +12,8 @@ node_modules/
 *.swp
 *.orig
 
-# Secrets
+# Secrets and Local Config
 appsettings.json
 appsettings.Development.json
+appsettings.Local.json
 launchSettings.json
