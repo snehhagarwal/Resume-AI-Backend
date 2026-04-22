@@ -21,14 +21,9 @@ public class UserRepository(AuthDbContext db) : IUserRepository
         => db.Users.Where(u => u.Role == role).ToListAsync()
               .ContinueWith(t => (IList<User>)t.Result);
 
-    public Task<IList<User>> FindBySubscriptionPlanAsync(SubscriptionPlan plan, int page, int pageSize)
-        => db.Users.Where(u => u.SubscriptionPlan == plan)
-               .Skip((page - 1) * pageSize).Take(pageSize)
-               .ToListAsync()
-               .ContinueWith(t => (IList<User>)t.Result);
-
-    public Task<int> CountBySubscriptionPlanAsync(SubscriptionPlan plan)
-        => db.Users.CountAsync(u => u.SubscriptionPlan == plan);
+    public Task<IList<User>> FindBySubscriptionPlanAsync(SubscriptionPlan plan)
+        => db.Users.Where(u => u.SubscriptionPlan == plan).ToListAsync()
+              .ContinueWith(t => (IList<User>)t.Result);
 
     public Task<IList<User>> FindByIsActiveAsync(bool isActive)
         => db.Users.Where(u => u.IsActive == isActive).ToListAsync()

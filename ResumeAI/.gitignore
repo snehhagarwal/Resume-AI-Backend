@@ -11,8 +11,3 @@ node_modules/
 *.suo
 *.swp
 *.orig
-
-# Secrets
-appsettings.json
-appsettings.Development.json
-launchSettings.json

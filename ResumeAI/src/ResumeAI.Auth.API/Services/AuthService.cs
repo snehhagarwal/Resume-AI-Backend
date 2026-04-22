@@ -52,11 +52,6 @@ public class AuthService(
 
     public Task LogoutAsync(int userId) => Task.CompletedTask; // stateless JWT
 
-    public async Task LogoutAllAsync(int userId)
-    {
-        await tokenRepo.RevokeAllForUserAsync(userId);
-    }
-
     public async Task<UserDto?> GetUserByIdAsync(int userId)
     {
         var user = await userRepo.FindByUserIdAsync(userId);
@@ -177,16 +172,6 @@ public class AuthService(
         return all.Select(MapToDto).ToList();
     }
 
-    public async Task SyncOAuthProfileAsync(int userId, string fullName, string email)
-    {
-        var user = await userRepo.FindByUserIdAsync(userId)
-                   ?? throw new KeyNotFoundException("User not found.");
-
-        user.FullName = fullName;
-        user.Email = email;
-        await userRepo.UpdateAsync(user);
-    }
-
     public async Task<AuthResponse> OAuthLoginAsync(
         AuthProvider provider, string email, string fullName)
     {
@@ -208,10 +193,6 @@ public class AuthService(
 
             if (!existing.IsActive)
                 throw new UnauthorizedAccessException("Account is suspended.");
-
-            // Sync profile on every login
-            existing.FullName = fullName;
-            await userRepo.UpdateAsync(existing);
  
             return await BuildAuthResponse(existing);
         }
