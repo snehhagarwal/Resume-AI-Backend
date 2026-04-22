@@ -1,0 +1,18 @@
+*.user
+.vs/
+bin/
+obj/
+.env
+*.env.local
+*.env.*.local
+node_modules/
+.DS_Store
+*.log
+*.suo
+*.swp
+*.orig
+
+# Secrets
+appsettings.json
+appsettings.Development.json
+launchSettings.json

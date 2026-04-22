@@ -1,0 +1,176 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  auth:
+    build:
+      context: .
+      dockerfile: src/ResumeAI.Auth.API/Dockerfile
+    ports:
+      - "5001:8080"
+    environment:
+      ConnectionStrings__AuthDb: "Host=postgres;Database=resumeai_auth;Username=postgres;Password=postgres"
+      Jwt__Secret: "CHANGE_ME_USE_AT_LEAST_32_CHAR_SECRET_KEY_HERE"
+      Jwt__Issuer: ResumeAI
+      Jwt__Audience: ResumeAI-Clients
+    depends_on:
+      - postgres
+
+  resume:
+    build:
+      context: .
+      dockerfile: src/ResumeAI.Resume.API/Dockerfile
+    ports:
+      - "5002:8080"
+    environment:
+      ConnectionStrings__ResumeDb: "Host=postgres;Database=resumeai_resume;Username=postgres;Password=postgres"
+      Jwt__Secret: "CHANGE_ME_USE_AT_LEAST_32_CHAR_SECRET_KEY_HERE"
+      Jwt__Issuer: ResumeAI
+      Jwt__Audience: ResumeAI-Clients
+    depends_on:
+      - postgres
+
+  section:
+    build:
+      context: .
+      dockerfile: src/ResumeAI.Section.API/Dockerfile
+    ports:
+      - "5003:8080"
+    environment:
+      ConnectionStrings__SectionDb: "Host=postgres;Database=resumeai_section;Username=postgres;Password=postgres"
+      Jwt__Secret: "CHANGE_ME_USE_AT_LEAST_32_CHAR_SECRET_KEY_HERE"
+      Jwt__Issuer: ResumeAI
+      Jwt__Audience: ResumeAI-Clients
+    depends_on:
+      - postgres
+
+  ai:
+    build:
+      context: .
+      dockerfile: src/ResumeAI.AI.API/Dockerfile
+    ports:
+      - "5004:8080"
+    environment:
+      ConnectionStrings__AiDb: "Host=postgres;Database=resumeai_ai;Username=postgres;Password=postgres"
+      Jwt__Secret: "CHANGE_ME_USE_AT_LEAST_32_CHAR_SECRET_KEY_HERE"
+      Jwt__Issuer: ResumeAI
+      Jwt__Audience: ResumeAI-Clients
+      Redis__ConnectionString: "redis:6379"
+      OpenAI__ApiKey: "${OPENAI_API_KEY}"
+      Anthropic__ApiKey: "${ANTHROPIC_API_KEY}"
+    depends_on:
+      - postgres
+      - redis
+
+  template:
+    build:
+      context: .
+      dockerfile: src/ResumeAI.Template.API/Dockerfile
+    ports:
+      - "5005:8080"
+    environment:
+      ConnectionStrings__TemplateDb: "Host=postgres;Database=resumeai_template;Username=postgres;Password=postgres"
+      Jwt__Secret: "CHANGE_ME_USE_AT_LEAST_32_CHAR_SECRET_KEY_HERE"
+      Jwt__Issuer: ResumeAI
+      Jwt__Audience: ResumeAI-Clients
+    depends_on:
+      - postgres
+
+  export:
+    build:
+      context: .
+      dockerfile: src/ResumeAI.Export.API/Dockerfile
+    ports:
+      - "5006:8080"
+    environment:
+      ConnectionStrings__ExportDb: "Host=postgres;Database=resumeai_export;Username=postgres;Password=postgres"
+      Jwt__Secret: "CHANGE_ME_USE_AT_LEAST_32_CHAR_SECRET_KEY_HERE"
+      Jwt__Issuer: ResumeAI
+      Jwt__Audience: ResumeAI-Clients
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  jobmatch:
+    build:
+      context: .
+      dockerfile: src/ResumeAI.JobMatch.API/Dockerfile
+    ports:
+      - "5007:8080"
+    environment:
+      ConnectionStrings__JobMatchDb: "Host=postgres;Database=resumeai_jobmatch;Username=postgres;Password=postgres"
+      Jwt__Secret: "CHANGE_ME_USE_AT_LEAST_32_CHAR_SECRET_KEY_HERE"
+      Jwt__Issuer: ResumeAI
+      Jwt__Audience: ResumeAI-Clients
+    depends_on:
+      - postgres
+
+  notification:
+    build:
+      context: .
+      dockerfile: src/ResumeAI.Notification.API/Dockerfile
+    ports:
+      - "5008:8080"
+    environment:
+      ConnectionStrings__NotificationDb: "Host=postgres;Database=resumeai_notification;Username=postgres;Password=postgres"
+      Jwt__Secret: "CHANGE_ME_USE_AT_LEAST_32_CHAR_SECRET_KEY_HERE"
+      Jwt__Issuer: ResumeAI
+      Jwt__Audience: ResumeAI-Clients
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  web:
+    build:
+      context: ./src/ResumeAI.React
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - gateway
+
+  gateway:
+    build:
+      context: .
+      dockerfile: src/ResumeAI.Gateway/Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      Jwt__Secret: "CHANGE_ME_USE_AT_LEAST_32_CHAR_SECRET_KEY_HERE"
+      Jwt__Issuer: ResumeAI
+      Jwt__Audience: ResumeAI-Clients
+    depends_on:
+      - auth
+      - resume
+      - section
+      - ai
+      - template
+      - export
+      - jobmatch
+      - notification
+
+volumes:
+  postgres_data:
