@@ -65,7 +65,8 @@ public record ResumeDto(
     bool IsPublic,
     int ViewCount,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    IList<SectionDto>? Sections = null);
 
 // ─── Section DTOs ───────────────────────────────────────────────
 public record AddSectionRequest(
@@ -136,6 +137,11 @@ public record TemplateDto(
     bool IsActive,
     int UsageCount,
     DateTime CreatedAt);
+
+public record TemplatePreviewDto(
+    int TemplateId,
+    string HtmlLayout,
+    string CssStyles);
 
 // ─── AI DTOs ────────────────────────────────────────────────────
 public record GenerateSummaryRequest(
@@ -258,4 +264,11 @@ public record ApiResponse<T>(bool Success, T? Data, string? Error = null)
 {
     public static ApiResponse<T> Ok(T data) => new(true, data);
     public static ApiResponse<T> Fail(string error) => new(false, default, error);
+}
+
+public record PaginationRequest(int Page = 1, int PageSize = 10);
+
+public record PagedResponse<T>(IList<T> Items, int TotalCount, int Page, int PageSize)
+{
+    public int TotalPages => (int)Math.Ceiling(TotalCount / (double)PageSize);
 }

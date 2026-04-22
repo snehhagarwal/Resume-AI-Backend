@@ -10,12 +10,7 @@ public class ResumeService(IResumeRepository resumeRepo) : IResumeService
 {
     public async Task<ResumeDto> CreateResumeAsync(int userId, SubscriptionPlan plan, CreateResumeRequest request)
     {
-        if (plan == SubscriptionPlan.FREE)
-        {
-            var count = await resumeRepo.CountByUserIdAsync(userId);
-            if (count >= 3)
-                throw new InvalidOperationException("Free tier limit (3 resumes) reached. Upgrade to Premium for unlimited resumes.");
-        }
+        await EnforceResumeLimitAsync(userId, plan);
 
         var resume = new Resume.API.Entities.ResumeRecord
         {
@@ -137,8 +132,36 @@ public class ResumeService(IResumeRepository resumeRepo) : IResumeService
         return resumes.Select(MapToDto).ToList();
     }
 
+    public async Task ChangeTemplateAsync(int resumeId, int userId, int templateId)
+    {
+        var resume = await resumeRepo.FindByResumeIdAsync(resumeId)
+                     ?? throw new KeyNotFoundException("Resume not found.");
+
+        if (resume.UserId != userId)
+            throw new UnauthorizedAccessException("You do not own this resume.");
+
+        resume.TemplateId = templateId;
+        await resumeRepo.UpdateAsync(resume);
+    }
+
+    public async Task<ResumeDto?> GetResumeWithSectionsAsync(int resumeId)
+    {
+        var resume = await resumeRepo.FindWithSectionsAsync(resumeId);
+        return resume is null ? null : MapToDto(resume);
+    }
+
+    public async Task EnforceResumeLimitAsync(int userId, SubscriptionPlan plan)
+    {
+        if (plan == SubscriptionPlan.FREE)
+        {
+            var count = await resumeRepo.CountByUserIdAsync(userId);
+            if (count >= 3)
+                throw new InvalidOperationException("Free tier limit (3 resumes) reached. Upgrade to Premium for unlimited resumes.");
+        }
+    }
+
     private static ResumeDto MapToDto(Resume.API.Entities.ResumeRecord r) =>
         new(r.ResumeId, r.UserId, r.Title, r.TargetJobTitle,
             r.TemplateId, r.AtsScore, r.Status, r.Language,
-            r.IsPublic, r.ViewCount, r.CreatedAt, r.UpdatedAt);
+            r.IsPublic, r.ViewCount, r.CreatedAt, r.UpdatedAt, null);
 }

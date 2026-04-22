@@ -18,7 +18,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ConnectionStrings__SectionDb": "Host=localhost;Database=resumeai_section;Username=postgres;Password=postgres123",
-        "Jwt__Secret": "YOUR_JWT_SECRET_HERE",
+        "Jwt__Secret": "R3sum3@AI#Micro$ervices!2026^SecureKey*32Chars!",
         "Jwt__Issuer": "ResumeAI",
         "Jwt__Audience": "ResumeAI-Clients"
       }
@@ -32,7 +32,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ConnectionStrings__SectionDb": "Host=localhost;Database=resumeai_section;Username=postgres;Password=postgres123",
-        "Jwt__Secret": "YOUR_JWT_SECRET_HERE",
+        "Jwt__Secret": "R3sum3@AI#Micro$ervices!2026^SecureKey*32Chars!",
         "Jwt__Issuer": "ResumeAI",
         "Jwt__Audience": "ResumeAI-Clients"
       }
@@ -44,7 +44,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ConnectionStrings__SectionDb": "Host=localhost;Database=resumeai_section;Username=postgres;Password=postgres123",
-        "Jwt__Secret": "YOUR_JWT_SECRET_HERE",
+        "Jwt__Secret": "R3sum3@AI#Micro$ervices!2026^SecureKey*32Chars!",
         "Jwt__Issuer": "ResumeAI",
         "Jwt__Audience": "ResumeAI-Clients"
       }
