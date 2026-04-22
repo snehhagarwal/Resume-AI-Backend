@@ -205,7 +205,7 @@ public record AiQuotaDto(
 // ─── Export DTOs ────────────────────────────────────────────────
 public record ExportRequest(
     int ResumeId,
-    ExportFormat Format,
+    ExportFormat Format = ExportFormat.PDF,
     string? Customizations = null);
 
 public record ExportJobDto(
