@@ -19,7 +19,7 @@ public class ExportController(IExportService exportService) : ControllerBase
     [HttpPost("pdf")]
     public async Task<IActionResult> ExportPdf([FromBody] ExportRequest request)
     {
-        var job = await exportService.ExportToPdfAsync(CurrentUserId, request with { Format = ExportFormat.PDF });
+        var job = await exportService.ExportToPdfAsync(CurrentUserId, request);
         return Ok(ApiResponse<ExportJobDto>.Ok(job));
     }
 
@@ -27,7 +27,7 @@ public class ExportController(IExportService exportService) : ControllerBase
     [HttpPost("docx")]
     public async Task<IActionResult> ExportDocx([FromBody] ExportRequest request)
     {
-        var job = await exportService.ExportToDocxAsync(CurrentUserId, request with { Format = ExportFormat.DOCX });
+        var job = await exportService.ExportToDocxAsync(CurrentUserId, request);
         return Ok(ApiResponse<ExportJobDto>.Ok(job));
     }
 
@@ -35,7 +35,7 @@ public class ExportController(IExportService exportService) : ControllerBase
     [HttpPost("json")]
     public async Task<IActionResult> ExportJson([FromBody] ExportRequest request)
     {
-        var job = await exportService.ExportToJsonAsync(CurrentUserId, request with { Format = ExportFormat.JSON });
+        var job = await exportService.ExportToJsonAsync(CurrentUserId, request);
         return Ok(ApiResponse<ExportJobDto>.Ok(job));
     }
 

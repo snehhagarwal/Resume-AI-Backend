@@ -68,5 +68,8 @@ public class ResumeRepository(ResumeDbContext db) : IResumeRepository
         => db.Resumes.Where(r => r.ResumeId == resumeId).ExecuteDeleteAsync();
 
     public Task<ResumeRecord?> FindWithSectionsAsync(int resumeId)
-        => db.Resumes.FirstOrDefaultAsync(r => r.ResumeId == resumeId);
+        => db.Resumes
+             .Include(r => r.Sections)
+             .AsNoTracking()
+             .FirstOrDefaultAsync(r => r.ResumeId == resumeId);
 }

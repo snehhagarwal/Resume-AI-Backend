@@ -43,7 +43,7 @@ public record UpdateSubscriptionRequest(SubscriptionPlan Plan);
 public record CreateResumeRequest(
     string Title,
     string TargetJobTitle,
-    int TemplateId,
+    int TemplateId = 1,
     string Language = "en");
 
 public record UpdateResumeRequest(
@@ -132,6 +132,8 @@ public record TemplateDto(
     string Name,
     string Description,
     string ThumbnailUrl,
+    string HtmlLayout,
+    string CssStyles,
     TemplateCategory Category,
     bool IsPremium,
     bool IsActive,
@@ -205,7 +207,6 @@ public record AiQuotaDto(
 // ─── Export DTOs ────────────────────────────────────────────────
 public record ExportRequest(
     int ResumeId,
-    ExportFormat Format = ExportFormat.PDF,
     string? Customizations = null);
 
 public record ExportJobDto(

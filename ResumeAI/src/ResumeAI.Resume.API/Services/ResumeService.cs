@@ -17,7 +17,7 @@ public class ResumeService(IResumeRepository resumeRepo) : IResumeService
             UserId = userId,
             Title = request.Title,
             TargetJobTitle = request.TargetJobTitle,
-            TemplateId = request.TemplateId,
+            TemplateId = request.TemplateId == 0 ? 1 : request.TemplateId, // Default to first seeded template
             Language = request.Language
         };
         var saved = await resumeRepo.AddAsync(resume);
@@ -66,14 +66,14 @@ public class ResumeService(IResumeRepository resumeRepo) : IResumeService
 
     public async Task<ResumeDto> DuplicateResumeAsync(int resumeId, int userId)
     {
-        var original = await resumeRepo.FindByResumeIdAsync(resumeId)
+        var original = await resumeRepo.FindWithSectionsAsync(resumeId)
                        ?? throw new KeyNotFoundException("Resume not found.");
 
         if (original.UserId != userId && !original.IsPublic)
             throw new UnauthorizedAccessException("You do not have permission to duplicate this resume.");
 
-        // Deep copy using no-tracking pattern
-        var copy = new Resume.API.Entities.ResumeRecord
+        // Deep copy: Create new resume entity
+        var copy = new Entities.ResumeRecord
         {
             UserId = userId,
             Title = $"{original.Title} (Copy)",
@@ -82,8 +82,21 @@ public class ResumeService(IResumeRepository resumeRepo) : IResumeService
             Language = original.Language,
             Status = ResumeStatus.DRAFT,
             CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            UpdatedAt = DateTime.UtcNow,
+            // Deep copy: Clone all sections
+            Sections = original.Sections.Select(s => new Entities.ResumeSection
+            {
+                SectionType = s.SectionType,
+                Title = s.Title,
+                Content = s.Content,
+                DisplayOrder = s.DisplayOrder,
+                IsVisible = s.IsVisible,
+                AiGenerated = s.AiGenerated,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            }).ToList()
         };
+
         var saved = await resumeRepo.AddAsync(copy);
         return MapToDto(saved);
     }
