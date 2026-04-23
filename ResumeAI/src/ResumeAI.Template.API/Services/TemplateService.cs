@@ -100,5 +100,6 @@ public class TemplateService(ITemplateRepository templateRepo) : ITemplateServic
 
     private static TemplateDto MapToDto(ResumeTemplate t) =>
         new(t.TemplateId, t.Name, t.Description, t.ThumbnailUrl,
+            t.HtmlLayout, t.CssStyles,
             t.Category, t.IsPremium, t.IsActive, t.UsageCount, t.CreatedAt);
 }
