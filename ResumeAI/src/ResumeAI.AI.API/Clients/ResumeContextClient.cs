@@ -1,8 +1,9 @@
+using Microsoft.AspNetCore.Http;
+using ResumeAI.AI.API.Interfaces;
+using ResumeAI.Shared.DTOs;
 using System.Net.Http.Headers;
 using System.Text.Json;
-using Microsoft.AspNetCore.Http;
-using ResumeAI.Shared.DTOs;
-using ResumeAI.AI.API.Interfaces;
+using System.Text.Json.Serialization;
 
 namespace ResumeAI.AI.API.Clients;
 
@@ -18,7 +19,11 @@ public sealed class ResumeContextClient(
     ILogger<ResumeContextClient> logger) : IResumeContextClient
 {
     private static readonly JsonSerializerOptions _json =
-        new() { PropertyNameCaseInsensitive = true };
+        new()
+        {
+            PropertyNameCaseInsensitive = true,
+            Converters = { new JsonStringEnumConverter() }
+        };
 
     // ─── Public methods ───────────────────────────────────────────
 

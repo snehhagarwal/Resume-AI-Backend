@@ -283,7 +283,9 @@ public class AiService(
             throw new InvalidOperationException("AI service unavailable. Please try again later.");
         }
 
-        saved.AiResponse = responseText;
+        saved.AiResponse = responseText.Replace("```json", "")
+        .Replace("```", "")
+        .Trim();
         saved.Model = usedModel;
         saved.TokensUsed = tokens;
         saved.Status = AiRequestStatus.COMPLETED;

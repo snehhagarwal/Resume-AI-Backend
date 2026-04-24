@@ -12,6 +12,8 @@ using ResumeAI.JobMatch.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddHttpContextAccessor();
+
 // ─── Data ───────────────────────────────────────────────────────
 builder.Services.AddDbContext<JobMatchDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("JobMatchDb")));

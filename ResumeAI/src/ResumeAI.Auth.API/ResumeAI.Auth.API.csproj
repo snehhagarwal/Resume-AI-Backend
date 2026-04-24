@@ -24,4 +24,8 @@
     <ProjectReference Include="..\ResumeAI.Shared\ResumeAI.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Data\Migrations\" />
+  </ItemGroup>
+
 </Project>
