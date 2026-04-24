@@ -43,7 +43,8 @@ public enum AiRequestType
     ATS,
     SKILLS,
     TAILOR,
-    TRANSLATE
+    TRANSLATE,
+    JOB_MATCH
 }
 
 public enum AiModel { GPT4O, CLAUDE }
@@ -62,4 +63,4 @@ public enum NotificationType
 
 public enum NotificationChannel { APP, EMAIL }
 
-public enum JobMatchSource { LINKEDIN, NAUKRI, MANUAL }
+public enum JobMatchSource { LINKEDIN , MANUAL }

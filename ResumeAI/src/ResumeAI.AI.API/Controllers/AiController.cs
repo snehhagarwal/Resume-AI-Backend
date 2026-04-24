@@ -75,6 +75,14 @@ public class AiController(IAiService aiService) : ControllerBase
         return Ok(ApiResponse<AiRequestDto>.Ok(result));
     }
 
+    [Authorize(Policy = "PremiumOnly")]
+    [HttpPost("analyze-job-fit")]
+    public async Task<IActionResult> AnalyzeJobFit([FromBody] CheckAtsRequest request)
+    {
+        var result = await aiService.AnalyzeJobFitAsync(CurrentUserId, request);
+        return Ok(ApiResponse<AiRequestDto>.Ok(result));
+    }
+
     [HttpGet("history")]
     public async Task<IActionResult> GetHistory()
     {

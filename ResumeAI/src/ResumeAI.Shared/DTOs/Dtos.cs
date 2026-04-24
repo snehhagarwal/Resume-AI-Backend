@@ -226,6 +226,8 @@ public record AnalyzeJobFitRequest(
     int ResumeId,
     string JobTitle,
     string JobDescription,
+    string? CompanyName = null,
+    string? Location = null,
     JobMatchSource Source = JobMatchSource.MANUAL);
 
 public record JobMatchDto(
@@ -234,6 +236,8 @@ public record JobMatchDto(
     int UserId,
     string JobTitle,
     string JobDescription,
+    string? CompanyName,
+    string? Location,
     int MatchScore,
     string MissingSkills,
     string Recommendations,
