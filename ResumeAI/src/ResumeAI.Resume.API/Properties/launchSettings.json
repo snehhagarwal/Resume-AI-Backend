@@ -18,7 +18,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ConnectionStrings__ResumeDb": "Host=localhost;Database=resumeai_resume;Username=postgres;Password=postgres123",
-        "Jwt__Secret": "R3sum3@AI#Micro$ervices!2026^SecureKey*32Chars!",
+        "Jwt__Secret": "R3sum3@AI#Micro$ervices!2026^XyZ&SecureK3y*Jwt~Token#Signing@Key!",
         "Jwt__Issuer": "ResumeAI",
         "Jwt__Audience": "ResumeAI-Clients"
       }

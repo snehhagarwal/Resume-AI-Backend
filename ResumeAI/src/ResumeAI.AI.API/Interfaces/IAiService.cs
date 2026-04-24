@@ -14,6 +14,7 @@ public interface IAiService
     Task<AiRequestDto> SuggestSkillsAsync(int userId, SuggestSkillsRequest request);
     Task<AiRequestDto> TailorResumeForJobAsync(int userId, TailorResumeRequest request);
     Task<AiRequestDto> TranslateResumeAsync(int userId, TranslateResumeRequest request);
+    Task<AiRequestDto> AnalyzeJobFitAsync(int userId, CheckAtsRequest request);
     Task<IList<AiRequestDto>> GetAiHistoryAsync(int userId);
     Task<AiQuotaDto> GetRemainingQuotaAsync(int userId);
 }

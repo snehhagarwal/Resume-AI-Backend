@@ -204,6 +204,21 @@ public class AiService(
         return await ExecuteAiCallAsync(userId, request.ResumeId, AiRequestType.TRANSLATE, prompt);
     }
 
+    public async Task<AiRequestDto> AnalyzeJobFitAsync(int userId, CheckAtsRequest request)
+    {
+        var resumeContext = await resumeContextClient.BuildResumeContextAsync(request.ResumeId);
+        var contextBlock = WrapContext(resumeContext);
+
+        var prompt =
+            "Analyze the candidate's resume against the job description below. " +
+            "Return a JSON object with exactly these keys: " +
+            "matchScore (integer 0-100), missingSkills (comma-separated string), recommendations (string).\n\n" +
+            $"Job Description:\n{_sanitizer.Sanitize(request.JobDescription)}" +
+            contextBlock;
+
+        return await ExecuteAiCallAsync(userId, request.ResumeId, AiRequestType.JOB_MATCH, prompt, isAtsCall: true);
+    }
+
     public async Task<IList<AiRequestDto>> GetAiHistoryAsync(int userId)
     {
         var requests = await aiRepo.FindByUserIdAsync(userId);
@@ -268,7 +283,9 @@ public class AiService(
             throw new InvalidOperationException("AI service unavailable. Please try again later.");
         }
 
-        saved.AiResponse = responseText;
+        saved.AiResponse = responseText.Replace("```json", "")
+        .Replace("```", "")
+        .Trim();
         saved.Model = usedModel;
         saved.TokensUsed = tokens;
         saved.Status = AiRequestStatus.COMPLETED;

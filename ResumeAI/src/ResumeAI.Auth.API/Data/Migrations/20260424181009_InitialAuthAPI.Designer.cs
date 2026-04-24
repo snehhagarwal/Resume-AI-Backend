@@ -12,7 +12,7 @@ using ResumeAI.Auth.API.Data;
 namespace ResumeAI.Auth.API.Data.Migrations
 {
     [DbContext(typeof(AuthDbContext))]
-    [Migration("20260421173533_InitialAuthAPI")]
+    [Migration("20260424181009_InitialAuthAPI")]
     partial class InitialAuthAPI
     {
         /// <inheritdoc />
@@ -24,6 +24,40 @@ namespace ResumeAI.Auth.API.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("ResumeAI.Auth.API.Entities.RefreshToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RefreshTokens");
+                });
 
             modelBuilder.Entity("ResumeAI.Auth.API.Entities.User", b =>
                 {
@@ -72,6 +106,17 @@ namespace ResumeAI.Auth.API.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("ResumeAI.Auth.API.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("ResumeAI.Auth.API.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 #pragma warning restore 612, 618
         }
