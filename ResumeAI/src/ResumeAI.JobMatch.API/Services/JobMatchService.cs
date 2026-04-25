@@ -2,13 +2,13 @@ using ResumeAI.JobMatch.API.Entities;
 using ResumeAI.JobMatch.API.Interfaces;
 using ResumeAI.Shared.DTOs;
 using ResumeAI.Shared.Enums;
-
 namespace ResumeAI.JobMatch.API.Services;
 
 public class JobMatchService(
     IJobMatchRepository matchRepo,
     IAiServiceClient aiClient,
     IJobSearchClient jobSearchClient,
+    INotificationPublisher notificationPublisher,
     ILogger<JobMatchService> logger) : IJobMatchService
 {
     public async Task<JobMatchDto> AnalyzeJobFit(int userId, AnalyzeJobFitRequest request)
@@ -30,6 +30,14 @@ public class JobMatchService(
         };
 
         var saved = await matchRepo.Add(match);
+        // Fire real-time notification
+        await notificationPublisher.PublishAsync(
+            userId,
+            $"Job Match Result 🎯",
+            $"{request.JobTitle}{(request.CompanyName is not null ? $" at {request.CompanyName}" : "")} — {match.MatchScore}% match.",
+            NotificationType.JOB_MATCH,
+            relatedId:   saved.MatchId.ToString(),
+            relatedType: "JobMatch");   
         return MapToDto(saved);
     }
 

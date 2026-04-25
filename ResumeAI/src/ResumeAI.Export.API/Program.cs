@@ -16,9 +16,18 @@ builder.Services.AddDbContext<ExportDbContext>(opt =>
 builder.Services.AddScoped<IExportRepository, ExportRepository>();
 builder.Services.AddScoped<IPdfRenderer, QuestPdfRenderer>();
 builder.Services.AddScoped<IExportService, ExportService>();
-
+builder.Services.AddScoped<INotificationPublisher, HttpNotificationPublisher>();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
+
+// ─── Notification internal client ────────────────────────────────
+builder.Services.AddHttpClient("Notification", client =>
+{
+    var baseUrl = builder.Configuration["Services:NotificationBaseUrl"]
+                  ?? "http://localhost:5008";
+    client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
 
 builder.Services.AddHostedService<ExportCleanupService>();
 

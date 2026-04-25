@@ -20,6 +20,16 @@ builder.Services.AddDbContext<JobMatchDbContext>(opt =>
 
 builder.Services.AddScoped<IJobMatchRepository, JobMatchRepository>();
 builder.Services.AddScoped<IJobMatchService, JobMatchService>();
+builder.Services.AddScoped<INotificationPublisher, HttpNotificationPublisher>();
+
+// ─── Notification internal client ────────────────────────────────
+builder.Services.AddHttpClient("Notification", client =>
+{
+    var baseUrl = builder.Configuration["Services:NotificationBaseUrl"]
+                  ?? "http://localhost:5008";
+    client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
 
 // ─── Polly Policies ─────────────────────────────────────────────
 var retryPolicy = HttpPolicyExtensions
