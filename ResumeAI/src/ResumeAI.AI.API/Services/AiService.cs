@@ -29,7 +29,8 @@ public class AiService(
     IConfiguration config,
     ILogger<AiService> logger,
     IHttpContextAccessor httpContextAccessor,
-    IResumeContextClient resumeContextClient) : IAiService
+    IResumeContextClient resumeContextClient,
+    INotificationPublisher notificationPublisher) : IAiService
 {
     private SubscriptionPlan CurrentUserPlan =>
         Enum.TryParse<SubscriptionPlan>(httpContextAccessor.HttpContext?.User.FindFirstValue("plan"), true, out var plan)
@@ -293,6 +294,18 @@ public class AiService(
         await aiRepo.UpdateAsync(saved);
 
         await IncrementQuotaCounterAsync(userId, quotaKey);
+
+        // Fire real-time notification — swallowed if Notification API is down
+        var (notifTitle, notifType) = isAtsCall
+            ? ("ATS Check Complete ✅", NotificationType.ATS_COMPLETE)
+            : ("AI Generation Complete ✨", NotificationType.AI_DONE);
+        await notificationPublisher.PublishAsync(
+            userId,
+            notifTitle,
+            $"{type} finished for resume #{resumeId}.",
+            notifType,
+            relatedId:   saved.RequestId,
+            relatedType: "AiRequest");
 
         return MapToDto(saved);
     }

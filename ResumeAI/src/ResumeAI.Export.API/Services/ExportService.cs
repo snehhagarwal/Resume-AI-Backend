@@ -20,6 +20,7 @@ public class ExportService(
     IExportRepository exportRepo,
     IConfiguration config,
     IPdfRenderer pdfRenderer,
+    INotificationPublisher notificationPublisher,
     IHttpClientFactory httpClientFactory,
     IHttpContextAccessor httpContextAccessor,
     ILogger<ExportService> logger) : IExportService
@@ -41,7 +42,15 @@ public class ExportService(
             job.CompletedAt = DateTime.UtcNow;
         }
         catch (Exception ex) { logger.LogError(ex, "PDF Fail"); job.Status = ExportStatus.FAILED; }
-        return MapToDto(await exportRepo.UpdateAsync(job));
+        var result = MapToDto(await exportRepo.UpdateAsync(job));
+        if (job.Status == ExportStatus.COMPLETED)
+            await notificationPublisher.PublishAsync(
+                userId, "PDF Export Ready 📄",
+                $"Your resume PDF is ready to download.",
+                NotificationType.EXPORT_READY,
+                relatedId:   job.JobId,
+                relatedType: "ExportJob");
+        return result;
     }
 
     public async Task<ExportJobDto> ExportToDocxAsync(int userId, ExportRequest request)
@@ -59,8 +68,15 @@ public class ExportService(
             job.CompletedAt = DateTime.UtcNow;
         }
         catch (Exception ex) { logger.LogError(ex, "DOCX Fail"); job.Status = ExportStatus.FAILED; }
-        return MapToDto(await exportRepo.UpdateAsync(job));
-    }
+        var result = MapToDto(await exportRepo.UpdateAsync(job));
+        if (job.Status == ExportStatus.COMPLETED)
+            await notificationPublisher.PublishAsync(
+                userId, "DOCX Export Ready 📝",
+                $"Your resume Word document is ready to download.",
+                NotificationType.EXPORT_READY,
+                relatedId:   job.JobId,
+                relatedType: "ExportJob");
+        return result;    }
 
     public async Task<ExportJobDto> ExportToJsonAsync(int userId, ExportRequest request)
     {

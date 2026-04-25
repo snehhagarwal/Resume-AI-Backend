@@ -18,6 +18,16 @@ builder.Services.AddDbContext<AiDbContext>(opt =>
 // ─── Repositories & services ─────────────────────────────────────
 builder.Services.AddScoped<IAiRequestRepository, AiRequestRepository>();
 builder.Services.AddScoped<IAiService, AiService>();
+builder.Services.AddScoped<INotificationPublisher, HttpNotificationPublisher>();
+
+// ─── Notification internal client ────────────────────────────────
+builder.Services.AddHttpClient("Notification", client =>
+{
+    var baseUrl = builder.Configuration["Services:NotificationBaseUrl"]
+                  ?? "http://localhost:5008";
+    client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
 
 // ─── Resume context client ────────────────────────────────────────
 // IHttpContextAccessor lets the client forward the caller's JWT to
