@@ -23,8 +23,8 @@
         "Jwt__Audience": "ResumeAI-Clients",
         "OAuth__Google__ClientId": "138021075804-5nfu14gg1ec95r5alaqeg3vuiplpa238.apps.googleusercontent.com",
         "OAuth__Google__ClientSecret": "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",
-        "OAuth__LinkedIn__ClientId": "YOUR_LINKEDIN_CLIENT_ID",
-        "OAuth__LinkedIn__ClientSecret": "YOUR_LINKEDIN_CLIENT_SECRET"
+        "OAuth__LinkedIn__ClientId": "77airtajg9mrcs",
+        "OAuth__LinkedIn__ClientSecret": "WPL_AP1.fvK30xIRiPst15R2.q6wvAw=="
       }
     },
     "https": {

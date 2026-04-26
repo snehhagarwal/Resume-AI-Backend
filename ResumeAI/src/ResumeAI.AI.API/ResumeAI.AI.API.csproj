@@ -17,7 +17,7 @@
     <!-- OpenAI AI provider -->
     <PackageReference Include="Azure.AI.OpenAI" Version="2.1.0" />
     <!-- Prompt injection sanitisation -->
-    <PackageReference Include="HtmlSanitizer" Version="8.1.870" />
+    <PackageReference Include="HtmlSanitizer" Version="9.0.874" />
     <!-- Redis distributed cache for quota tracking -->
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.11" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />

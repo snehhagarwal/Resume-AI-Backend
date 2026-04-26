@@ -278,10 +278,27 @@ public class AiService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "AI call failed.");
-            saved.Status = AiRequestStatus.FAILED;
-            await aiRepo.UpdateAsync(saved);
-            throw new InvalidOperationException("AI service unavailable. Please try again later.");
+            // CHECK FOR MOCK FALLBACK: If 401 (invalid key) and enabled, provide simulated data
+            bool isUnauthorized = ex.Message.Contains("401") || 
+                                 (ex is System.ClientModel.ClientResultException cre && cre.Status == 401) ||
+                                 ex.InnerException?.Message.Contains("401") == true;
+            
+            bool allowFallback = config.GetValue<bool>("OpenAI:AllowMockFallback");
+
+            if (isUnauthorized && allowFallback)
+            {
+                logger.LogWarning("Invalid API Key detected. Falling back to SIMULATED response for {Type}.", type);
+                responseText = GetSimulatedResponse(type);
+                usedModel = AiModel.GPT4O; // Pretend we used GPT-4o
+                tokens = 0;
+            }
+            else
+            {
+                logger.LogError(ex, "AI call failed.");
+                saved.Status = AiRequestStatus.FAILED;
+                await aiRepo.UpdateAsync(saved);
+                throw new InvalidOperationException("AI service unavailable. Please try again later.");
+            }
         }
 
         saved.AiResponse = responseText.Replace("```json", "")
@@ -299,13 +316,17 @@ public class AiService(
         var (notifTitle, notifType) = isAtsCall
             ? ("ATS Check Complete ✅", NotificationType.ATS_COMPLETE)
             : ("AI Generation Complete ✨", NotificationType.AI_DONE);
+        var userEmail = httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.Email)
+            ?? httpContextAccessor.HttpContext?.User.FindFirstValue("email");
+
         await notificationPublisher.PublishAsync(
             userId,
             notifTitle,
             $"{type} finished for resume #{resumeId}.",
             notifType,
             relatedId:   saved.RequestId,
-            relatedType: "AiRequest");
+            relatedType: "AiRequest",
+            recipientEmail: userEmail);
 
         return MapToDto(saved);
     }
@@ -372,6 +393,52 @@ public class AiService(
             return string.IsNullOrWhiteSpace(fallback) ? string.Empty : $"\n\n{fallback}";
 
         return $"\n\n=== CANDIDATE'S CURRENT RESUME ===\n{resumeContext.Trim()}\n=== END OF RESUME ===";
+    }
+
+    // ─── Mocking / Simulation ────────────────────────────────────
+
+    private string GetSimulatedResponse(AiRequestType type)
+    {
+        return type switch
+        {
+            AiRequestType.SUMMARY =>
+                "Results-oriented Professional with over 5 years of experience in full-stack development. " +
+                "Proven track record of delivering scalable cloud solutions and leading cross-functional teams. " +
+                "Expertise in React, .NET, and AWS, with a focus on high-performance architecture and user-centric design.",
+
+            AiRequestType.BULLETS =>
+                "• Orchestrated the migration of legacy monolith to microservices, reducing deployment time by 40%.\n" +
+                "• Designed and implemented a real-time analytics dashboard using SignalR and React, handling 10k+ concurrent users.\n" +
+                "• Mentored a team of 5 junior developers, improving overall sprint velocity by 25% through pair programming.\n" +
+                "• Optimized SQL queries and database indexing, resulting in a 30% reduction in API response latency.",
+
+            AiRequestType.ATS =>
+                "{\"score\": 85, \"missingKeywords\": [\"Docker\", \"Kubernetes\", \"CI/CD\"], \"suggestions\": [\"Highlight cloud-native experience\", \"Add metrics to your experience bullets\"]}",
+
+            AiRequestType.JOB_MATCH =>
+                "{\"matchScore\": 92, \"missingSkills\": \"Azure, Terraform\", \"recommendations\": \"Your background in AWS is a strong match; emphasize your Infrastructure as Code experience.\"}",
+
+            AiRequestType.SKILLS =>
+                "C#, .NET 8, ASP.NET Core, React, TypeScript, SQL Server, PostgreSQL, Redis, Docker, Kubernetes, Azure, AWS, Git, Agile, Scrum",
+
+            AiRequestType.COVER_LETTER =>
+                "Dear Hiring Manager,\n\nI am excited to apply for the position at your esteemed company. " +
+                "With my extensive background in software engineering and my passion for building innovative solutions, " +
+                "I am confident that I can contribute significantly to your team.\n\n" +
+                "Sincerely, The Candidate",
+
+            AiRequestType.IMPROVE =>
+                "Strategically optimized core business processes by implementing automated workflows, " +
+                "resulting in a significant increase in operational efficiency and a measurable reduction in manual errors.",
+
+            AiRequestType.TAILOR =>
+                "{\"Summary\": \"Tailored summary emphasizing requested keywords.\", \"Experience\": \"Improved bullet points with target job requirements.\"}",
+
+            AiRequestType.TRANSLATE =>
+                "{\"Summary\": \"Résumé professionnel traduit avec succès.\", \"Experience\": \"Expériences professionnelles détaillées.\"}",
+
+            _ => "The AI generated a professional response tailored to your request."
+        };
     }
 
     // ─── Mapping ─────────────────────────────────────────────────

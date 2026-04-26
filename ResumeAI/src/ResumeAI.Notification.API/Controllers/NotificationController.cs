@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResumeAI.Notification.API.Services;
+using ResumeAI.Notification.API.Interfaces;
 using ResumeAI.Shared.DTOs;
 using ResumeAI.Shared.Enums;
 
@@ -88,9 +89,10 @@ public class NotificationController(
             request.Title,
             request.Message,
             request.Type,
-            NotificationChannel.APP,
+            request.Channel,
             request.RelatedId,
-            request.RelatedType);
+            request.RelatedType,
+            request.RecipientEmail);
 
         return NoContent();
     }
@@ -102,5 +104,7 @@ public record InternalNotificationRequest(
     string Title,
     string Message,
     NotificationType Type,
+    NotificationChannel Channel = NotificationChannel.APP,
+    string? RecipientEmail = null,
     string? RelatedId = null,
     string? RelatedType = null);

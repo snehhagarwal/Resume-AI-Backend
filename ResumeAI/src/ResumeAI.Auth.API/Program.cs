@@ -81,22 +81,6 @@ builder.Services.AddAuthentication(opts =>
     // causes the browser to drop it and fail the CSRF correlation check.
     opts.CorrelationCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     opts.CorrelationCookie.SameSite     = SameSiteMode.Lax;
-})
-// ── LinkedIn OAuth2 (community package: AspNet.Security.OAuth.LinkedIn) ─
-.AddLinkedIn(opts =>
-{
-    opts.ClientId     = builder.Configuration["OAuth:LinkedIn:ClientId"]
-                        ?? throw new InvalidOperationException("OAuth:LinkedIn:ClientId is not configured.");
-    opts.ClientSecret = builder.Configuration["OAuth:LinkedIn:ClientSecret"]
-                        ?? throw new InvalidOperationException("OAuth:LinkedIn:ClientSecret is not configured.");
-    opts.CallbackPath     = "/signin-linkedin";
-    opts.SaveTokens       = false;
-    opts.Scope.Add("openid");
-    opts.Scope.Add("profile");
-    opts.Scope.Add("email");
-    // Same fix as Google: correlation cookie must not be Secure on plain HTTP.
-    opts.CorrelationCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-    opts.CorrelationCookie.SameSite     = SameSiteMode.Lax;
 });
 
 // ─── Authorization policies ───────────────────────────────────────

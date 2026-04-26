@@ -6,6 +6,7 @@ public class ResumeSection
 {
     public int SectionId { get; set; }
     public int ResumeId { get; set; }
+    public int UserId { get; set; }
     public SectionType SectionType { get; set; }
     public string Title { get; set; } = string.Empty;
     /// <summary>Rich-text content stored as JSON string.</summary>

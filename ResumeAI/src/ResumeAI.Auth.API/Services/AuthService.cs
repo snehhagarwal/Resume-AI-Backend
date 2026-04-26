@@ -91,12 +91,13 @@ public class AuthService(
         await userRepo.UpdateAsync(user);
     }
 
-    public async Task UpdateSubscriptionAsync(int userId, SubscriptionPlan plan)
+    public async Task<AuthResponse> UpdateSubscriptionAsync(int userId, SubscriptionPlan plan)
     {
         var user = await userRepo.FindByUserIdAsync(userId)
                    ?? throw new KeyNotFoundException("User not found.");
         user.SubscriptionPlan = plan;
         await userRepo.UpdateAsync(user);
+        return await BuildAuthResponse(user);
     }
 
     public async Task DeactivateAccountAsync(int userId)

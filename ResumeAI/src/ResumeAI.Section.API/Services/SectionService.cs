@@ -8,11 +8,12 @@ namespace ResumeAI.Section.API.Services;
 
 public class SectionService(ISectionRepository sectionRepo) : ISectionService
 {
-    public async Task<SectionDto> AddSectionAsync(AddSectionRequest request)
+    public async Task<SectionDto> AddSectionAsync(int userId, AddSectionRequest request)
     {
         var section = new ResumeSection
         {
             ResumeId = request.ResumeId,
+            UserId = userId,
             SectionType = request.SectionType,
             Title = request.Title,
             Content = request.Content,
@@ -23,9 +24,9 @@ public class SectionService(ISectionRepository sectionRepo) : ISectionService
         return MapToDto(saved);
     }
 
-    public async Task<IList<SectionDto>> GetSectionsByResumeAsync(int resumeId)
+    public async Task<IList<SectionDto>> GetSectionsByResumeAsync(int resumeId, int userId)
     {
-        var sections = await sectionRepo.FindByResumeIdOrderByDisplayOrderAsync(resumeId);
+        var sections = await sectionRepo.FindByResumeIdOrderByDisplayOrderAsync(resumeId, userId);
         return sections.Select(MapToDto).ToList();
     }
 
@@ -35,17 +36,20 @@ public class SectionService(ISectionRepository sectionRepo) : ISectionService
         return section is null ? null : MapToDto(section);
     }
 
-    public async Task<IList<SectionDto>> GetSectionsByTypeAsync(int resumeId, SectionType sectionType)
+    public async Task<IList<SectionDto>> GetSectionsByTypeAsync(int resumeId, SectionType sectionType, int userId)
     {
-        var sections = await sectionRepo.FindByResumeIdAndSectionTypeAsync(resumeId, sectionType);
+        var sections = await sectionRepo.FindByResumeIdAndSectionTypeAsync(resumeId, sectionType, userId);
         return sections.Select(MapToDto).ToList();
     }
 
-    public async Task<SectionDto> UpdateSectionAsync(int sectionId, UpdateSectionRequest request)
+    public async Task<SectionDto> UpdateSectionAsync(int sectionId, int userId, UpdateSectionRequest request)
     {
         var section = await sectionRepo.FindBySectionIdAsync(sectionId)
                       ?? throw new KeyNotFoundException("Section not found.");
         
+        if (section.UserId != userId)
+            throw new UnauthorizedAccessException("You do not own this section.");
+            
         section.Title = request.Title;
         section.Content = request.Content;
         section.DisplayOrder = request.DisplayOrder;
@@ -59,37 +63,41 @@ public class SectionService(ISectionRepository sectionRepo) : ISectionService
         return MapToDto(updated);
     }
 
-    public Task DeleteSectionAsync(int sectionId)
-        => sectionRepo.DeleteBySectionIdAsync(sectionId);
+    public Task DeleteSectionAsync(int sectionId, int userId)
+        => sectionRepo.DeleteBySectionIdAsync(sectionId, userId);
 
-    public Task DeleteAllSectionsAsync(int resumeId)
-        => sectionRepo.DeleteByResumeIdAsync(resumeId);
+    public Task DeleteAllSectionsAsync(int resumeId, int userId)
+        => sectionRepo.DeleteByResumeIdAsync(resumeId, userId);
 
-    public async Task ReorderSectionsAsync(int resumeId, ReorderSectionsRequest request)
+    public async Task ReorderSectionsAsync(int resumeId, int userId, ReorderSectionsRequest request)
     {
         // ExecuteUpdateAsync in a loop for atomic per-section order update
         for (int i = 0; i < request.OrderedSectionIds.Count; i++)
         {
-            await sectionRepo.UpdateDisplayOrderAsync(request.OrderedSectionIds[i], i);
+            await sectionRepo.UpdateDisplayOrderAsync(request.OrderedSectionIds[i], userId, i);
         }
     }
 
-    public async Task<SectionDto> ToggleVisibilityAsync(int sectionId)
+    public async Task<SectionDto> ToggleVisibilityAsync(int sectionId, int userId)
     {
         var section = await sectionRepo.FindBySectionIdAsync(sectionId)
                       ?? throw new KeyNotFoundException("Section not found.");
+        
+        if (section.UserId != userId)
+            throw new UnauthorizedAccessException("You do not own this section.");
+            
         section.IsVisible = !section.IsVisible;
         var updated = await sectionRepo.UpdateAsync(section);
         return MapToDto(updated);
     }
 
-    public async Task<IList<SectionDto>> BulkUpdateSectionsAsync(BulkUpdateSectionsRequest request)
+    public async Task<IList<SectionDto>> BulkUpdateSectionsAsync(int userId, BulkUpdateSectionsRequest request)
     {
         var sectionEntities = new List<ResumeSection>();
         foreach (var item in request.Sections)
         {
             var section = await sectionRepo.FindBySectionIdAsync(item.SectionId);
-            if (section is null) continue;
+            if (section is null || section.UserId != userId) continue;
 
             section.Title = item.Title;
             section.Content = item.Content;
@@ -108,20 +116,24 @@ public class SectionService(ISectionRepository sectionRepo) : ISectionService
         return sectionEntities.Select(MapToDto).ToList();
     }
 
-    public Task MarkAsAiGeneratedAsync(int sectionId)
-        => sectionRepo.MarkAsAiGeneratedAsync(sectionId);
+    public Task MarkAsAiGeneratedAsync(int sectionId, int userId)
+        => sectionRepo.MarkAsAiGeneratedAsync(sectionId, userId);
 
-    public Task<int> CountSectionsByResumeAsync(int resumeId)
-        => sectionRepo.CountByResumeIdAsync(resumeId);
+    public Task<int> CountSectionsByResumeAsync(int resumeId, int userId)
+        => sectionRepo.CountByResumeIdAsync(resumeId, userId);
 
-    public async Task<SectionDto> CopySectionAsync(int sectionId, int targetResumeId)
+    public async Task<SectionDto> CopySectionAsync(int sectionId, int userId, int targetResumeId)
     {
         var original = await sectionRepo.FindBySectionIdAsync(sectionId)
                        ?? throw new KeyNotFoundException("Section not found.");
         
+        if (original.UserId != userId)
+            throw new UnauthorizedAccessException("You do not own this section.");
+            
         var copy = new ResumeSection
         {
             ResumeId = targetResumeId,
+            UserId = userId,
             SectionType = original.SectionType,
             Title = original.Title,
             Content = original.Content,

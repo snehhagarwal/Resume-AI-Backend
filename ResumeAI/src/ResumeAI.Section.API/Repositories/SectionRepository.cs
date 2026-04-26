@@ -8,22 +8,22 @@ namespace ResumeAI.Section.API.Repositories;
 
 public class SectionRepository(SectionDbContext db) : ISectionRepository
 {
-    public Task<IList<ResumeSection>> FindByResumeIdAsync(int resumeId)
-        => db.ResumeSections.Where(s => s.ResumeId == resumeId)
+    public Task<IList<ResumeSection>> FindByResumeIdAsync(int resumeId, int userId)
+        => db.ResumeSections.Where(s => s.ResumeId == resumeId && s.UserId == userId)
                .OrderBy(s => s.DisplayOrder).ToListAsync()
                .ContinueWith(t => (IList<ResumeSection>)t.Result);
 
-    public Task<IList<ResumeSection>> FindByResumeIdAndSectionTypeAsync(int resumeId, SectionType sectionType)
+    public Task<IList<ResumeSection>> FindByResumeIdAndSectionTypeAsync(int resumeId, SectionType sectionType, int userId)
         => db.ResumeSections
-               .Where(s => s.ResumeId == resumeId && s.SectionType == sectionType)
+               .Where(s => s.ResumeId == resumeId && s.SectionType == sectionType && s.UserId == userId)
                .ToListAsync()
                .ContinueWith(t => (IList<ResumeSection>)t.Result);
 
     public Task<ResumeSection?> FindBySectionIdAsync(int sectionId)
         => db.ResumeSections.FindAsync(sectionId).AsTask();
 
-    public Task<IList<ResumeSection>> FindByResumeIdOrderByDisplayOrderAsync(int resumeId)
-        => db.ResumeSections.Where(s => s.ResumeId == resumeId)
+    public Task<IList<ResumeSection>> FindByResumeIdOrderByDisplayOrderAsync(int resumeId, int userId)
+        => db.ResumeSections.Where(s => s.ResumeId == resumeId && s.UserId == userId)
                .OrderBy(s => s.DisplayOrder).ToListAsync()
                .ContinueWith(t => (IList<ResumeSection>)t.Result);
 
@@ -32,8 +32,8 @@ public class SectionRepository(SectionDbContext db) : ISectionRepository
                .ToListAsync()
                .ContinueWith(t => (IList<ResumeSection>)t.Result);
 
-    public Task<int> CountByResumeIdAsync(int resumeId)
-        => db.ResumeSections.CountAsync(s => s.ResumeId == resumeId);
+    public Task<int> CountByResumeIdAsync(int resumeId, int userId)
+        => db.ResumeSections.CountAsync(s => s.ResumeId == resumeId && s.UserId == userId);
 
     public async Task<ResumeSection> AddAsync(ResumeSection section)
     {
@@ -50,20 +50,20 @@ public class SectionRepository(SectionDbContext db) : ISectionRepository
         return section;
     }
 
-    public Task UpdateDisplayOrderAsync(int sectionId, int displayOrder)
+    public Task UpdateDisplayOrderAsync(int sectionId, int userId, int displayOrder)
         => db.ResumeSections
-             .Where(s => s.SectionId == sectionId)
+             .Where(s => s.SectionId == sectionId && s.UserId == userId)
              .ExecuteUpdateAsync(p => p.SetProperty(s => s.DisplayOrder, displayOrder));
 
-    public Task DeleteByResumeIdAsync(int resumeId)
-        => db.ResumeSections.Where(s => s.ResumeId == resumeId).ExecuteDeleteAsync();
+    public Task DeleteByResumeIdAsync(int resumeId, int userId)
+        => db.ResumeSections.Where(s => s.ResumeId == resumeId && s.UserId == userId).ExecuteDeleteAsync();
+    
+    public Task DeleteBySectionIdAsync(int sectionId, int userId)
+        => db.ResumeSections.Where(s => s.SectionId == sectionId && s.UserId == userId).ExecuteDeleteAsync();
 
-    public Task DeleteBySectionIdAsync(int sectionId)
-        => db.ResumeSections.Where(s => s.SectionId == sectionId).ExecuteDeleteAsync();
-
-    public Task MarkAsAiGeneratedAsync(int sectionId)
+    public Task MarkAsAiGeneratedAsync(int sectionId, int userId)
         => db.ResumeSections
-             .Where(s => s.SectionId == sectionId)
+             .Where(s => s.SectionId == sectionId && s.UserId == userId)
              .ExecuteUpdateAsync(p => p.SetProperty(s => s.AiGenerated, true));
 
     public async Task UpdateRangeAsync(IEnumerable<ResumeSection> sections)

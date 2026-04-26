@@ -1,4 +1,4 @@
-﻿<Solution>
+<Solution>
   <Folder Name="/src/">
     <Project Path="src\ResumeAI.Shared\ResumeAI.Shared.csproj" />
     <Project Path="src\ResumeAI.Auth.API\ResumeAI.Auth.API.csproj" />
@@ -11,5 +11,8 @@
     <Project Path="src\ResumeAI.Notification.API\ResumeAI.Notification.API.csproj" />
     <Project Path="src\ResumeAI.Gateway\ResumeAI.Gateway.csproj" />
     <Project Path="src\ResumeAI.Web\ResumeAI.Web.csproj" />
+  </Folder>
+  <Folder Name="/src/unittesting/">
+    <Project Path="src/unittesting/ResumeAI.UnitTests/ResumeAI.UnitTests.csproj" />
   </Folder>
 </Solution>

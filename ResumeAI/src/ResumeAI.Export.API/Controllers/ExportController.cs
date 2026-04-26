@@ -13,8 +13,18 @@ namespace ResumeAI.Export.API.Controllers;
 public class ExportController(IExportService exportService) : ControllerBase
 {
     private int CurrentUserId =>
-        int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? throw new UnauthorizedAccessException());
+        int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                  ?? User.FindFirst("sub")?.Value 
+                  ?? throw new UnauthorizedAccessException());
+
+    [HttpGet("debug")]
+    public IActionResult Debug()
+    {
+        return Ok(new { 
+            UserId = CurrentUserId, 
+            Claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList() 
+        });
+    }
 
     [HttpPost("pdf")]
     public async Task<IActionResult> ExportPdf([FromBody] ExportRequest request)
@@ -43,7 +53,9 @@ public class ExportController(IExportService exportService) : ControllerBase
     public async Task<IActionResult> GetStatus(string jobId)
     {
         var job = await exportService.GetJobStatusAsync(jobId);
-        return job is null ? NotFound() : Ok(ApiResponse<ExportJobDto>.Ok(job));
+        if (job is null) return NotFound();
+        if (job.UserId != CurrentUserId) return Forbid();
+        return Ok(ApiResponse<ExportJobDto>.Ok(job));
     }
 
     [HttpGet("my")]
@@ -56,7 +68,7 @@ public class ExportController(IExportService exportService) : ControllerBase
     [HttpGet("stats")]
     public async Task<IActionResult> GetStats()
     {
-        var stats = await exportService.GetExportStatsAsync();
+        var stats = await exportService.GetExportStatsAsync(CurrentUserId);
         return Ok(ApiResponse<IDictionary<string, int>>.Ok(stats));
     }
 
@@ -67,6 +79,7 @@ public class ExportController(IExportService exportService) : ControllerBase
         {
             var job = await exportService.GetJobStatusAsync(jobId);
             if (job == null) return NotFound();
+            if (job.UserId != CurrentUserId) return Forbid();
 
             var bytes = await exportService.DownloadFileAsync(jobId);
             
@@ -95,6 +108,10 @@ public class ExportController(IExportService exportService) : ControllerBase
     [HttpDelete("{jobId}")]
     public async Task<IActionResult> Delete(string jobId)
     {
+        var job = await exportService.GetJobStatusAsync(jobId);
+        if (job == null) return NotFound();
+        if (job.UserId != CurrentUserId) return Forbid();
+
         await exportService.DeleteExportAsync(jobId);
         return NoContent();
     }

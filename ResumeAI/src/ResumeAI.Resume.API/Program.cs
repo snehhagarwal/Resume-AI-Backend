@@ -15,6 +15,11 @@ builder.Services.AddDbContext<ResumeDbContext>(opt =>
 builder.Services.AddScoped<IResumeRepository, ResumeRepository>();
 builder.Services.AddScoped<IResumeService, ResumeService>();
 
+builder.Services.AddHttpClient("TemplateApi", client =>
+{
+    client.BaseAddress = new Uri("http://localhost:5004/api/");
+});
+
 var jwtSecret = builder.Configuration["Jwt:Secret"]!;
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opts =>

@@ -30,11 +30,13 @@ public class ExportService(
     public async Task<ExportJobDto> ExportToPdfAsync(int userId, ExportRequest request)
     {
         var job = await CreateJobAsync(userId, request, ExportFormat.PDF);
+        string? userEmail = null;
         try
         {
             job.Status = ExportStatus.PROCESSING;
             await exportRepo.UpdateAsync(job);
             var exportData = await GatherExportDataAsync(request.ResumeId, job.Customizations);
+            userEmail = exportData.User.Email;
             var pdfBytes = pdfRenderer.GeneratePdf(exportData);
             job.FileUrl = await UploadToBlobAsync(job.JobId, pdfBytes, "application/pdf");
             job.FileSizeKb = pdfBytes.Length / 1024;
@@ -49,18 +51,21 @@ public class ExportService(
                 $"Your resume PDF is ready to download.",
                 NotificationType.EXPORT_READY,
                 relatedId:   job.JobId,
-                relatedType: "ExportJob");
+                relatedType: "ExportJob",
+                recipientEmail: userEmail);
         return result;
     }
 
     public async Task<ExportJobDto> ExportToDocxAsync(int userId, ExportRequest request)
     {
         var job = await CreateJobAsync(userId, request, ExportFormat.DOCX);
+        string? userEmail = null;
         try
         {
             job.Status = ExportStatus.PROCESSING;
             await exportRepo.UpdateAsync(job);
             var exportData = await GatherExportDataAsync(request.ResumeId, job.Customizations);
+            userEmail = exportData.User.Email;
             var docxBytes = GenerateDocx(exportData);
             job.FileUrl = await UploadToBlobAsync(job.JobId, docxBytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
             job.FileSizeKb = docxBytes.Length / 1024;
@@ -75,7 +80,8 @@ public class ExportService(
                 $"Your resume Word document is ready to download.",
                 NotificationType.EXPORT_READY,
                 relatedId:   job.JobId,
-                relatedType: "ExportJob");
+                relatedType: "ExportJob",
+                recipientEmail: userEmail);
         return result;    }
 
     public async Task<ExportJobDto> ExportToJsonAsync(int userId, ExportRequest request)
@@ -108,9 +114,9 @@ public class ExportService(
 
     public Task DeleteExportAsync(string jobId) => exportRepo.DeleteByJobIdAsync(jobId);
     public Task CleanupExpiredExportsAsync() => exportRepo.DeleteExpiredJobsAsync(DateTime.UtcNow);
-    public async Task<IDictionary<string, int>> GetExportStatsAsync() {
+    public async Task<IDictionary<string, int>> GetExportStatsAsync(int userId) {
         var stats = new Dictionary<string, int>();
-        foreach (ExportStatus s in Enum.GetValues(typeof(ExportStatus))) stats[s.ToString()] = (await exportRepo.FindByStatusAsync(s)).Count;
+        foreach (ExportStatus s in Enum.GetValues(typeof(ExportStatus))) stats[s.ToString()] = await exportRepo.CountByStatusAndUserAsync(s, userId);
         return stats;
     }
 

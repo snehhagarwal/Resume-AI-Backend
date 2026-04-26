@@ -4,7 +4,7 @@ public enum Role { USER, ADMIN }
 
 public enum SubscriptionPlan { FREE, PREMIUM }
 
-public enum AuthProvider { LOCAL, GOOGLE, LINKEDIN }
+public enum AuthProvider { LOCAL, GOOGLE }
 
 public enum ResumeStatus { DRAFT, COMPLETE }
 
@@ -63,4 +63,4 @@ public enum NotificationType
 
 public enum NotificationChannel { APP, EMAIL }
 
-public enum JobMatchSource { LINKEDIN , MANUAL }
+public enum JobMatchSource { MANUAL, LINKEDIN }

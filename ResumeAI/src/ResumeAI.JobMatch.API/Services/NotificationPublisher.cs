@@ -1,17 +1,8 @@
 using ResumeAI.Shared.Enums;
 
-namespace ResumeAI.JobMatch.API.Services;
+using ResumeAI.JobMatch.API.Interfaces;
 
-/// <summary>
-/// Fires a fire-and-forget notification to the Notification API via the
-/// internal shared-secret endpoint. Failures are swallowed + logged so
-/// a notification hiccup never kills a job-match analysis.
-/// </summary>
-public interface INotificationPublisher
-{
-    Task PublishAsync(int recipientId, string title, string message,
-        NotificationType type, string? relatedId = null, string? relatedType = null);
-}
+namespace ResumeAI.JobMatch.API.Services;
 
 public sealed class HttpNotificationPublisher(
     IHttpClientFactory httpClientFactory,
@@ -19,7 +10,7 @@ public sealed class HttpNotificationPublisher(
     ILogger<HttpNotificationPublisher> logger) : INotificationPublisher
 {
     public async Task PublishAsync(int recipientId, string title, string message,
-        NotificationType type, string? relatedId = null, string? relatedType = null)
+        NotificationType type, string? relatedId = null, string? relatedType = null, string? recipientEmail = null)
     {
         try
         {
@@ -33,7 +24,8 @@ public sealed class HttpNotificationPublisher(
                     recipientId, title, message,
                     type        = type.ToString(),
                     relatedId,
-                    relatedType
+                    relatedType,
+                    recipientEmail
                 })
             };
             req.Headers.Add("X-Internal-Key", key);

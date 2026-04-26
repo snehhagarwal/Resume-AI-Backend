@@ -13,7 +13,7 @@ public interface IAuthService
     Task<UserDto?> GetUserByIdAsync(int userId);
     Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileRequest request);
     Task ChangePasswordAsync(int userId, ChangePasswordRequest request);
-    Task UpdateSubscriptionAsync(int userId, SubscriptionPlan plan);
+    Task<AuthResponse> UpdateSubscriptionAsync(int userId, SubscriptionPlan plan);
     Task DeactivateAccountAsync(int userId);
     Task ReactivateAccountAsync(int userId);
     Task HardDeleteUserAsync(int userId);
