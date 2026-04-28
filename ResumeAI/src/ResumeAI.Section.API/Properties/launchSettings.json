@@ -17,8 +17,8 @@
       "applicationUrl": "http://localhost:5003",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "ConnectionStrings__SectionDb": "Host=localhost;Database=resumeai_section;Username=postgres;Password=postgres123",
-        "Jwt__Secret": "R3sum3@AI#Micro$ervices!2026^XyZ&SecureK3y*Jwt~Token#Signing@Key!",
+        "ConnectionStrings__SectionDb": "Host=localhost;Database=resumeai_section;Username=postgres;Password=YOUR_POSTGRES_PASSWORD_HERE",
+        "Jwt__Secret": "YOUR_JWT_SECRET_HERE",
         "Jwt__Issuer": "ResumeAI",
         "Jwt__Audience": "ResumeAI-Clients"
       }
@@ -31,8 +31,8 @@
       "applicationUrl": "https://localhost:7126;http://localhost:5132",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "ConnectionStrings__SectionDb": "Host=localhost;Database=resumeai_section;Username=postgres;Password=postgres123",
-        "Jwt__Secret": "R3sum3@AI#Micro$ervices!2026^SecureKey*32Chars!",
+        "ConnectionStrings__SectionDb": "Host=localhost;Database=resumeai_section;Username=postgres;Password=YOUR_POSTGRES_PASSWORD_HERE",
+        "Jwt__Secret": "YOUR_JWT_SECRET_HERE",
         "Jwt__Issuer": "ResumeAI",
         "Jwt__Audience": "ResumeAI-Clients"
       }
@@ -43,8 +43,8 @@
       "launchUrl": "weatherforecast",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "ConnectionStrings__SectionDb": "Host=localhost;Database=resumeai_section;Username=postgres;Password=postgres123",
-        "Jwt__Secret": "R3sum3@AI#Micro$ervices!2026^SecureKey*32Chars!",
+        "ConnectionStrings__SectionDb": "Host=localhost;Database=resumeai_section;Username=postgres;Password=YOUR_POSTGRES_PASSWORD_HERE",
+        "Jwt__Secret": "YOUR_JWT_SECRET_HERE",
         "Jwt__Issuer": "ResumeAI",
         "Jwt__Audience": "ResumeAI-Clients"
       }

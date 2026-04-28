@@ -8,13 +8,14 @@ namespace ResumeAI.JobMatch.API.Controllers;
 
 [ApiController]
 [Route("api/job-matches")]
-[Authorize(Policy = "PremiumOnly")]
+[Authorize]
 public class JobMatchController(IJobMatchService matchService) : ControllerBase
 {
     private int CurrentUserId =>
         int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? throw new UnauthorizedAccessException());
 
+    [Authorize(Policy = "PremiumOnly")]
     [HttpPost("analyze")]
     public async Task<IActionResult> Analyze([FromBody] AnalyzeJobFitRequest request)
     {
@@ -48,6 +49,7 @@ public class JobMatchController(IJobMatchService matchService) : ControllerBase
         return NoContent();
     }
 
+    [Authorize(Policy = "PremiumOnly")]
     [HttpPost("fetch/linkedin")]
     public async Task<IActionResult> FetchLinkedIn([FromQuery] int resumeId, [FromQuery] string keywords)
     {
@@ -55,6 +57,7 @@ public class JobMatchController(IJobMatchService matchService) : ControllerBase
         return Ok(ApiResponse<IList<JobMatchDto>>.Ok(matches));
     }
 
+    [Authorize(Policy = "PremiumOnly")]
     [HttpGet("{matchId:int}/recommendations")]
     public async Task<IActionResult> GetRecommendations(int matchId)
     {

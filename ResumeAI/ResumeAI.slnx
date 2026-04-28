@@ -10,9 +10,15 @@
     <Project Path="src\ResumeAI.JobMatch.API\ResumeAI.JobMatch.API.csproj" />
     <Project Path="src\ResumeAI.Notification.API\ResumeAI.Notification.API.csproj" />
     <Project Path="src\ResumeAI.Gateway\ResumeAI.Gateway.csproj" />
-    <Project Path="src\ResumeAI.Web\ResumeAI.Web.csproj" />
   </Folder>
   <Folder Name="/src/unittesting/">
-    <Project Path="src/unittesting/ResumeAI.UnitTests/ResumeAI.UnitTests.csproj" />
+    <Project Path="src\ResumeAI.UnitTests\AI.Tests\ResumeAI.AI.Tests.csproj" />
+    <Project Path="src\ResumeAI.UnitTests\Auth.Tests\ResumeAI.Auth.Tests.csproj" />
+    <Project Path="src\ResumeAI.UnitTests\Export.Tests\ResumeAI.Export.Tests.csproj" />
+    <Project Path="src\ResumeAI.UnitTests\JobMatch.Tests\ResumeAI.JobMatch.Tests.csproj" />
+    <Project Path="src\ResumeAI.UnitTests\Notification.Tests\ResumeAI.Notification.Tests.csproj" />
+    <Project Path="src\ResumeAI.UnitTests\Resume.Tests\ResumeAI.Resume.Tests.csproj" />
+    <Project Path="src\ResumeAI.UnitTests\Section.Tests\ResumeAI.Section.Tests.csproj" />
+    <Project Path="src\ResumeAI.UnitTests\Template.Tests\ResumeAI.Template.Tests.csproj" />
   </Folder>
 </Solution>

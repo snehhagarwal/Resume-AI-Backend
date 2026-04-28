@@ -17,12 +17,12 @@
       "applicationUrl": "http://localhost:5001",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "ConnectionStrings__AuthDb": "Host=localhost;Database=resumeai_auth;Username=postgres;Password=postgres123",
-        "Jwt__Secret": "R3sum3@AI#Micro$ervices!2026^XyZ&SecureK3y*Jwt~Token#Signing@Key!",
+        "ConnectionStrings__AuthDb": "Host=localhost;Database=resumeai_auth;Username=postgres;Password=YOUR_POSTGRES_PASSWORD_HERE",
+        "Jwt__Secret": "YOUR_JWT_SECRET_HERE",
         "Jwt__Issuer": "ResumeAI",
         "Jwt__Audience": "ResumeAI-Clients",
-        "OAuth__Google__ClientId": "138021075804-5nfu14gg1ec95r5alaqeg3vuiplpa238.apps.googleusercontent.com",
-        "OAuth__Google__ClientSecret": "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",
+        "OAuth__Google__ClientId": "YOUR_GOOGLE_CLIENT_ID_HERE",
+        "OAuth__Google__ClientSecret": "YOUR_GOOGLE_CLIENT_SECRET_HERE",
         "OAuth__LinkedIn__ClientId": "77airtajg9mrcs",
         "OAuth__LinkedIn__ClientSecret": "WPL_AP1.fvK30xIRiPst15R2.q6wvAw=="
       }
@@ -35,12 +35,12 @@
       "applicationUrl": "https://localhost:7198;http://localhost:5004",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "ConnectionStrings__AuthDb": "Host=localhost;Database=resumeai_auth;Username=postgres;Password=postgres123",
-        "Jwt__Secret": "R3sum3@AI#Micro$ervices!2026^SecureKey*32Chars!",
+        "ConnectionStrings__AuthDb": "Host=localhost;Database=resumeai_auth;Username=postgres;Password=YOUR_POSTGRES_PASSWORD_HERE",
+        "Jwt__Secret": "YOUR_JWT_SECRET_HERE",
         "Jwt__Issuer": "ResumeAI",
         "Jwt__Audience": "ResumeAI-Clients",
-        "OAuth__Google__ClientId": "138021075804-5nfu14gg1ec95r5alaqeg3vuiplpa238.apps.googleusercontent.com",
-        "OAuth__Google__ClientSecret": "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",
+        "OAuth__Google__ClientId": "YOUR_GOOGLE_CLIENT_ID_HERE",
+        "OAuth__Google__ClientSecret": "YOUR_GOOGLE_CLIENT_SECRET_HERE",
         "OAuth__LinkedIn__ClientId": "YOUR_LINKEDIN_CLIENT_ID",
         "OAuth__LinkedIn__ClientSecret": "YOUR_LINKEDIN_CLIENT_SECRET"
       }
@@ -51,12 +51,12 @@
       "launchUrl": "weatherforecast",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "ConnectionStrings__AuthDb": "Host=localhost;Database=resumeai_auth;Username=postgres;Password=postgres123",
-        "Jwt__Secret": "R3sum3@AI#Micro$ervices!2026^SecureKey*32Chars!",
+        "ConnectionStrings__AuthDb": "Host=localhost;Database=resumeai_auth;Username=postgres;Password=YOUR_POSTGRES_PASSWORD_HERE",
+        "Jwt__Secret": "YOUR_JWT_SECRET_HERE",
         "Jwt__Issuer": "ResumeAI",
         "Jwt__Audience": "ResumeAI-Clients",
-        "OAuth__Google__ClientId": "138021075804-5nfu14gg1ec95r5alaqeg3vuiplpa238.apps.googleusercontent.com",
-        "OAuth__Google__ClientSecret": "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",
+        "OAuth__Google__ClientId": "YOUR_GOOGLE_CLIENT_ID_HERE",
+        "OAuth__Google__ClientSecret": "YOUR_GOOGLE_CLIENT_SECRET_HERE",
         "OAuth__LinkedIn__ClientId": "YOUR_LINKEDIN_CLIENT_ID",
         "OAuth__LinkedIn__ClientSecret": "YOUR_LINKEDIN_CLIENT_SECRET"
       }

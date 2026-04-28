@@ -294,10 +294,16 @@ public class AiService(
             }
             else
             {
-                logger.LogError(ex, "AI call failed.");
+                var body = "";
+                if (ex is System.ClientModel.ClientResultException creErr)
+                {
+                    try { body = creErr.GetRawResponse()?.Content?.ToString(); } catch {}
+                }
+                
+                logger.LogError(ex, "AI call failed. Response body: {Body}", body);
                 saved.Status = AiRequestStatus.FAILED;
                 await aiRepo.UpdateAsync(saved);
-                throw new InvalidOperationException("AI service unavailable. Please try again later.");
+                throw new InvalidOperationException($"AI service unavailable: {ex.Message}. Body: {body}");
             }
         }
 
@@ -311,6 +317,28 @@ public class AiService(
         await aiRepo.UpdateAsync(saved);
 
         await IncrementQuotaCounterAsync(userId, quotaKey);
+
+        // If it's an ATS/Match call, try to write the score back to the resume
+        if (isAtsCall)
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(saved.AiResponse);
+                int score = -1;
+                
+                if (doc.RootElement.TryGetProperty("matchScore", out var ms)) score = ms.GetInt32();
+                else if (doc.RootElement.TryGetProperty("score", out var s)) score = s.GetInt32();
+
+                if (score >= 0)
+                {
+                    await resumeContextClient.UpdateAtsScoreAsync(resumeId, score);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to parse match score from AI response for resume {ResumeId}.", resumeId);
+            }
+        }
 
         // Fire real-time notification — swallowed if Notification API is down
         var (notifTitle, notifType) = isAtsCall
@@ -335,19 +363,38 @@ public class AiService(
 
     private async Task<(string text, int tokens)> CallOpenAiAsync(string prompt)
     {
-        var endpoint = config["OpenAI:Endpoint"];
-        var apiKey = config["OpenAI:ApiKey"]
+        var endpoint = config["OpenAI:Endpoint"] ?? "https://api.groq.com/openai/v1";
+        var apiKey = config["OpenAI:ApiKey"]?.Trim()
             ?? throw new InvalidOperationException("OpenAI:ApiKey not configured.");
         var model = config["OpenAI:ModelName"] ?? "llama-3.3-70b-versatile";
 
-        // Using standard OpenAI ChatClient with Groq endpoint
-        ChatClient chatClient = new(model, new System.ClientModel.ApiKeyCredential(apiKey), new OpenAIClientOptions { Endpoint = new Uri(endpoint ?? "https://api.openai.com/v1") });
+        var maskedKey = apiKey.Length > 8 
+            ? apiKey.Substring(0, 4) + "..." + apiKey.Substring(apiKey.Length - 4) 
+            : "****";
         
-        var completion = await chatClient.CompleteChatAsync(
-            [new UserChatMessage(prompt)]);
+        logger.LogInformation("Using API Key: {MaskedKey} and Endpoint: {Endpoint}", maskedKey, endpoint);
 
-        var text = completion.Value.Content[0].Text;
-        var tokens = completion.Value.Usage.TotalTokenCount;
+        using var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+        
+        var requestBody = new
+        {
+            model = model,
+            messages = new[] { new { role = "user", content = prompt } }
+        };
+
+        var response = await httpClient.PostAsJsonAsync($"{endpoint.TrimEnd('/')}/chat/completions", requestBody);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception($"Direct Groq call failed: {response.StatusCode}. Body: {responseBody}");
+        }
+
+        using var doc = System.Text.Json.JsonDocument.Parse(responseBody);
+        var text = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "";
+        var tokens = doc.RootElement.GetProperty("usage").GetProperty("total_tokens").GetInt32();
+
         return (text, tokens);
     }
 

@@ -43,7 +43,11 @@ public class ExportService(
             job.Status = ExportStatus.COMPLETED;
             job.CompletedAt = DateTime.UtcNow;
         }
-        catch (Exception ex) { logger.LogError(ex, "PDF Fail"); job.Status = ExportStatus.FAILED; }
+        catch (Exception ex) 
+        { 
+            logger.LogError(ex, "PDF Generation Failed for User {UserId}, Resume {ResumeId}. Error: {Msg}", userId, request.ResumeId, ex.Message); 
+            job.Status = ExportStatus.FAILED; 
+        }
         var result = MapToDto(await exportRepo.UpdateAsync(job));
         if (job.Status == ExportStatus.COMPLETED)
             await notificationPublisher.PublishAsync(
@@ -210,14 +214,22 @@ public class ExportService(
 
     private async Task<ResumeDto> FetchResumeAsync(int id) {
         var c = httpClientFactory.CreateClient(); ForwardToken(c);
-        var res = await c.GetAsync($"{config["Services:ResumeApi"] ?? "http://localhost:5002"}/api/resumes/{id}");
-        return (await res.Content.ReadFromJsonAsync<ApiResponse<ResumeDto>>(GetJsonOptions()))?.Data ?? throw new Exception();
+        var url = $"{config["Services:ResumeApi"] ?? "http://localhost:5002"}/api/resumes/{id}";
+        try {
+            var res = await c.GetAsync(url);
+            if (!res.IsSuccessStatusCode) throw new Exception($"Resume API returned {res.StatusCode}");
+            return (await res.Content.ReadFromJsonAsync<ApiResponse<ResumeDto>>(GetJsonOptions()))?.Data ?? throw new Exception("Empty response");
+        } catch (Exception ex) { logger.LogError(ex, "Failed to fetch resume from {Url}", url); throw; }
     }
 
     private async Task<IList<SectionDto>> FetchSectionsAsync(int id) {
         var c = httpClientFactory.CreateClient(); ForwardToken(c);
-        var res = await c.GetAsync($"{config["Services:SectionApi"] ?? "http://localhost:5003"}/api/sections/by-resume/{id}");
-        return (await res.Content.ReadFromJsonAsync<ApiResponse<IList<SectionDto>>>(GetJsonOptions()))?.Data ?? new List<SectionDto>();
+        var url = $"{config["Services:SectionApi"] ?? "http://localhost:5003"}/api/sections/by-resume/{id}";
+        try {
+            var res = await c.GetAsync(url);
+            if (!res.IsSuccessStatusCode) throw new Exception($"Section API returned {res.StatusCode}");
+            return (await res.Content.ReadFromJsonAsync<ApiResponse<IList<SectionDto>>>(GetJsonOptions()))?.Data ?? new List<SectionDto>();
+        } catch (Exception ex) { logger.LogError(ex, "Failed to fetch sections from {Url}", url); throw; }
     }
 
     private async Task<UserDto> FetchUserAsync() {

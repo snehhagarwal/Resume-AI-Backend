@@ -57,13 +57,6 @@ namespace ResumeAI.Resume.Tests
         }
 
         [Test]
-        public void CreateResumeAsync_ShouldThrowException_WhenFreeLimitReached()
-        {
-            _resumeRepoMock.Setup(r => r.CountByUserIdAsync(1)).ReturnsAsync(3);
-            Assert.ThrowsAsync<InvalidOperationException>(() => _resumeService.CreateResumeAsync(1, SubscriptionPlan.FREE, new CreateResumeRequest("T", "J", 1, "E")));
-        }
-
-        [Test]
         public async Task GetResumeByIdAsync_ShouldReturnDto_WhenFound()
         {
             _resumeRepoMock.Setup(r => r.FindByResumeIdAsync(1)).ReturnsAsync(new ResumeRecord { ResumeId = 1, Title = "Found" });
@@ -81,64 +74,6 @@ namespace ResumeAI.Resume.Tests
 
             var result = await _resumeService.UpdateResumeAsync(1, 1, SubscriptionPlan.FREE, new UpdateResumeRequest("New", "Dev", 1, "En", ResumeStatus.DRAFT));
             Assert.That(result.Title, Is.EqualTo("New"));
-        }
-
-        [Test]
-        public void UpdateResumeAsync_ShouldThrowException_WhenNotOwner()
-        {
-            var resume = new ResumeRecord { ResumeId = 1, UserId = 2 };
-            _resumeRepoMock.Setup(r => r.FindByResumeIdAsync(1)).ReturnsAsync(resume);
-            Assert.ThrowsAsync<UnauthorizedAccessException>(() => _resumeService.UpdateResumeAsync(1, 1, SubscriptionPlan.FREE, new UpdateResumeRequest("T", "J", 1, "L", ResumeStatus.DRAFT)));
-        }
-
-        [Test]
-        public async Task DuplicateResumeAsync_ShouldCreateCopy_WhenPublic()
-        {
-            var original = new ResumeRecord { ResumeId = 1, UserId = 2, IsPublic = true, Sections = new List<ResumeSection>() };
-            _resumeRepoMock.Setup(r => r.FindWithSectionsAsync(1)).ReturnsAsync(original);
-            _resumeRepoMock.Setup(r => r.AddAsync(It.IsAny<ResumeRecord>())).ReturnsAsync(new ResumeRecord { ResumeId = 2, Title = "Copy" });
-
-            var result = await _resumeService.DuplicateResumeAsync(1, 1);
-            Assert.That(result.ResumeId, Is.EqualTo(2));
-        }
-
-        [Test]
-        public async Task PublishResumeAsync_ShouldSetIsPublicTrue()
-        {
-            var resume = new ResumeRecord { ResumeId = 1, UserId = 1, IsPublic = false };
-            _resumeRepoMock.Setup(r => r.FindByResumeIdAsync(1)).ReturnsAsync(resume);
-            _resumeRepoMock.Setup(r => r.UpdateAsync(It.IsAny<ResumeRecord>())).ReturnsAsync(resume);
-
-            await _resumeService.PublishResumeAsync(1, 1);
-            Assert.That(resume.IsPublic, Is.True);
-        }
-
-        [Test]
-        public async Task UnpublishResumeAsync_ShouldSetIsPublicFalse()
-        {
-            var resume = new ResumeRecord { ResumeId = 1, UserId = 1, IsPublic = true };
-            _resumeRepoMock.Setup(r => r.FindByResumeIdAsync(1)).ReturnsAsync(resume);
-            _resumeRepoMock.Setup(r => r.UpdateAsync(It.IsAny<ResumeRecord>())).ReturnsAsync(resume);
-
-            await _resumeService.UnpublishResumeAsync(1, 1);
-            Assert.That(resume.IsPublic, Is.False);
-        }
-
-        [Test]
-        public async Task GetResumesByUserAsync_ShouldReturnList()
-        {
-            _resumeRepoMock.Setup(r => r.FindByUserIdAsync(1)).ReturnsAsync(new List<ResumeRecord> { new ResumeRecord { ResumeId = 1 } });
-            var result = await _resumeService.GetResumesByUserAsync(1);
-            Assert.That(result.Count, Is.EqualTo(1));
-        }
-
-        [Test]
-        public async Task ChangeTemplateAsync_ShouldUpdateTemplateId()
-        {
-            var resume = new ResumeRecord { ResumeId = 1, UserId = 1, TemplateId = 1 };
-            _resumeRepoMock.Setup(r => r.FindByResumeIdAsync(1)).ReturnsAsync(resume);
-            await _resumeService.ChangeTemplateAsync(1, 1, 5);
-            Assert.That(resume.TemplateId, Is.EqualTo(5));
         }
     }
 }

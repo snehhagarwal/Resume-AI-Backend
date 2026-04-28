@@ -129,10 +129,13 @@ public class ResumeController(IResumeService resumeService) : ControllerBase
     }
 
     [HttpPut("{resumeId:int}/ats-score")]
-    [Authorize(Roles = "ADMIN")]
-    public async Task<IActionResult> UpdateAtsScore(int resumeId, [FromBody] int score)
+    public async Task<IActionResult> UpdateAtsScore(int resumeId, [FromBody] UpdateAtsScoreRequest request)
     {
-        await resumeService.UpdateAtsScoreAsync(resumeId, score);
+        var resume = await resumeService.GetResumeByIdAsync(resumeId);
+        if (resume == null) return NotFound();
+        if (resume.UserId != CurrentUserId) return Forbid();
+
+        await resumeService.UpdateAtsScoreAsync(resumeId, request.Score);
         return NoContent();
     }
 

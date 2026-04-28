@@ -133,6 +133,21 @@ public sealed class ResumeContextClient(
         return sb.ToString();
     }
 
+    public async Task<bool> UpdateAtsScoreAsync(int resumeId, int score)
+    {
+        try
+        {
+            var client = BuildClient("ResumeApiClient");
+            var response = await client.PutAsJsonAsync($"api/resumes/{resumeId}/ats-score", new UpdateAtsScoreRequest(score));
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to update ATS score for resume {ResumeId}.", resumeId);
+            return false;
+        }
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────
 
     /// <summary>

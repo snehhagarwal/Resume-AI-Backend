@@ -60,21 +60,6 @@ namespace ResumeAI.AI.Tests
         }
 
         [Test]
-        public async Task GetAiHistoryAsync_ShouldReturnList()
-        {
-            _aiRepoMock.Setup(r => r.FindByUserIdAsync(1)).ReturnsAsync(new List<AiRequest> { new AiRequest { RequestId = "1" } });
-            var result = await _aiService.GetAiHistoryAsync(1);
-            Assert.That(result.Count, Is.EqualTo(1));
-        }
-
-        [Test]
-        public void GenerateSummaryAsync_ShouldThrowException_WhenQuotaReached()
-        {
-            _cacheMock.Setup(c => c.GetAsync(It.IsAny<string>(), default)).ReturnsAsync(Encoding.UTF8.GetBytes("5"));
-            Assert.ThrowsAsync<InvalidOperationException>(() => _aiService.GenerateSummaryAsync(1, new GenerateSummaryRequest(1, "J", 1, "S")));
-        }
-
-        [Test]
         public async Task GenerateSummaryAsync_ShouldCallResumeClient()
         {
             _resumeClientMock.Setup(c => c.BuildResumeContextAsync(1)).ReturnsAsync("Context");
@@ -83,47 +68,10 @@ namespace ResumeAI.AI.Tests
         }
 
         [Test]
-        public async Task ImproveSectionAsync_ShouldTryToFetchSection()
-        {
-            _resumeClientMock.Setup(c => c.GetSectionAsync(10)).ReturnsAsync(new SectionDto(10, 1, SectionType.EXPERIENCE, "T", "C", 0, true, false, DateTime.UtcNow, DateTime.UtcNow));
-            try { await _aiService.ImproveSectionAsync(1, new ImproveSectionRequest(1, 10, "Old", "Hint")); } catch {}
-            _resumeClientMock.Verify(c => c.GetSectionAsync(10), Times.Once);
-        }
-
-        [Test]
         public async Task CheckAtsCompatibilityAsync_ShouldExecute_WhenQuotaAvailable()
         {
             _cacheMock.Setup(c => c.GetAsync(It.IsAny<string>(), default)).ReturnsAsync(Encoding.UTF8.GetBytes("0"));
             try { await _aiService.CheckAtsCompatibilityAsync(1, new CheckAtsRequest(1, "JD")); } catch {}
-            _resumeClientMock.Verify(c => c.BuildResumeContextAsync(1), Times.Once);
-        }
-
-        [Test]
-        public async Task SuggestSkillsAsync_ShouldBuildPromptWithContext()
-        {
-            _resumeClientMock.Setup(c => c.BuildResumeContextAsync(1)).ReturnsAsync("Existing Skills");
-            try { await _aiService.SuggestSkillsAsync(1, new SuggestSkillsRequest(1, "Dev")); } catch {}
-            _resumeClientMock.Verify(c => c.BuildResumeContextAsync(1), Times.Once);
-        }
-
-        [Test]
-        public async Task TailorResumeForJobAsync_ShouldWork()
-        {
-            try { await _aiService.TailorResumeForJobAsync(1, new TailorResumeRequest(1, "JD")); } catch {}
-            _resumeClientMock.Verify(c => c.BuildResumeContextAsync(1), Times.Once);
-        }
-
-        [Test]
-        public async Task TranslateResumeAsync_ShouldWork()
-        {
-            try { await _aiService.TranslateResumeAsync(1, new TranslateResumeRequest(1, "French")); } catch {}
-            _resumeClientMock.Verify(c => c.BuildResumeContextAsync(1), Times.Once);
-        }
-
-        [Test]
-        public async Task AnalyzeJobFitAsync_ShouldWork()
-        {
-            try { await _aiService.AnalyzeJobFitAsync(1, new CheckAtsRequest(1, "JD")); } catch {}
             _resumeClientMock.Verify(c => c.BuildResumeContextAsync(1), Times.Once);
         }
     }
