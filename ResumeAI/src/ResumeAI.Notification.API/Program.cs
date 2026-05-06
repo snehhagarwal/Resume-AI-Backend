@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using ResumeAI.Notification.API.Data;
 using ResumeAI.Notification.API.Hubs;
 using ResumeAI.Notification.API.Services;
+using ResumeAI.Notification.API.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 

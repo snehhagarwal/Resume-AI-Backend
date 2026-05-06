@@ -30,18 +30,24 @@ public class ExportService(
     public async Task<ExportJobDto> ExportToPdfAsync(int userId, ExportRequest request)
     {
         var job = await CreateJobAsync(userId, request, ExportFormat.PDF);
+        string? userEmail = null;
         try
         {
             job.Status = ExportStatus.PROCESSING;
             await exportRepo.UpdateAsync(job);
             var exportData = await GatherExportDataAsync(request.ResumeId, job.Customizations);
+            userEmail = exportData.User.Email;
             var pdfBytes = pdfRenderer.GeneratePdf(exportData);
             job.FileUrl = await UploadToBlobAsync(job.JobId, pdfBytes, "application/pdf");
             job.FileSizeKb = pdfBytes.Length / 1024;
             job.Status = ExportStatus.COMPLETED;
             job.CompletedAt = DateTime.UtcNow;
         }
-        catch (Exception ex) { logger.LogError(ex, "PDF Fail"); job.Status = ExportStatus.FAILED; }
+        catch (Exception ex) 
+        { 
+            logger.LogError(ex, "PDF Generation Failed for User {UserId}, Resume {ResumeId}. Error: {Msg}", userId, request.ResumeId, ex.Message); 
+            job.Status = ExportStatus.FAILED; 
+        }
         var result = MapToDto(await exportRepo.UpdateAsync(job));
         if (job.Status == ExportStatus.COMPLETED)
             await notificationPublisher.PublishAsync(
@@ -49,18 +55,21 @@ public class ExportService(
                 $"Your resume PDF is ready to download.",
                 NotificationType.EXPORT_READY,
                 relatedId:   job.JobId,
-                relatedType: "ExportJob");
+                relatedType: "ExportJob",
+                recipientEmail: userEmail);
         return result;
     }
 
     public async Task<ExportJobDto> ExportToDocxAsync(int userId, ExportRequest request)
     {
         var job = await CreateJobAsync(userId, request, ExportFormat.DOCX);
+        string? userEmail = null;
         try
         {
             job.Status = ExportStatus.PROCESSING;
             await exportRepo.UpdateAsync(job);
             var exportData = await GatherExportDataAsync(request.ResumeId, job.Customizations);
+            userEmail = exportData.User.Email;
             var docxBytes = GenerateDocx(exportData);
             job.FileUrl = await UploadToBlobAsync(job.JobId, docxBytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
             job.FileSizeKb = docxBytes.Length / 1024;
@@ -75,7 +84,8 @@ public class ExportService(
                 $"Your resume Word document is ready to download.",
                 NotificationType.EXPORT_READY,
                 relatedId:   job.JobId,
-                relatedType: "ExportJob");
+                relatedType: "ExportJob",
+                recipientEmail: userEmail);
         return result;    }
 
     public async Task<ExportJobDto> ExportToJsonAsync(int userId, ExportRequest request)
@@ -108,9 +118,9 @@ public class ExportService(
 
     public Task DeleteExportAsync(string jobId) => exportRepo.DeleteByJobIdAsync(jobId);
     public Task CleanupExpiredExportsAsync() => exportRepo.DeleteExpiredJobsAsync(DateTime.UtcNow);
-    public async Task<IDictionary<string, int>> GetExportStatsAsync() {
+    public async Task<IDictionary<string, int>> GetExportStatsAsync(int userId) {
         var stats = new Dictionary<string, int>();
-        foreach (ExportStatus s in Enum.GetValues(typeof(ExportStatus))) stats[s.ToString()] = (await exportRepo.FindByStatusAsync(s)).Count;
+        foreach (ExportStatus s in Enum.GetValues(typeof(ExportStatus))) stats[s.ToString()] = await exportRepo.CountByStatusAndUserAsync(s, userId);
         return stats;
     }
 
@@ -204,14 +214,22 @@ public class ExportService(
 
     private async Task<ResumeDto> FetchResumeAsync(int id) {
         var c = httpClientFactory.CreateClient(); ForwardToken(c);
-        var res = await c.GetAsync($"{config["Services:ResumeApi"] ?? "http://localhost:5002"}/api/resumes/{id}");
-        return (await res.Content.ReadFromJsonAsync<ApiResponse<ResumeDto>>(GetJsonOptions()))?.Data ?? throw new Exception();
+        var url = $"{config["Services:ResumeApi"] ?? "http://localhost:5002"}/api/resumes/{id}";
+        try {
+            var res = await c.GetAsync(url);
+            if (!res.IsSuccessStatusCode) throw new Exception($"Resume API returned {res.StatusCode}");
+            return (await res.Content.ReadFromJsonAsync<ApiResponse<ResumeDto>>(GetJsonOptions()))?.Data ?? throw new Exception("Empty response");
+        } catch (Exception ex) { logger.LogError(ex, "Failed to fetch resume from {Url}", url); throw; }
     }
 
     private async Task<IList<SectionDto>> FetchSectionsAsync(int id) {
         var c = httpClientFactory.CreateClient(); ForwardToken(c);
-        var res = await c.GetAsync($"{config["Services:SectionApi"] ?? "http://localhost:5003"}/api/sections/by-resume/{id}");
-        return (await res.Content.ReadFromJsonAsync<ApiResponse<IList<SectionDto>>>(GetJsonOptions()))?.Data ?? new List<SectionDto>();
+        var url = $"{config["Services:SectionApi"] ?? "http://localhost:5003"}/api/sections/by-resume/{id}";
+        try {
+            var res = await c.GetAsync(url);
+            if (!res.IsSuccessStatusCode) throw new Exception($"Section API returned {res.StatusCode}");
+            return (await res.Content.ReadFromJsonAsync<ApiResponse<IList<SectionDto>>>(GetJsonOptions()))?.Data ?? new List<SectionDto>();
+        } catch (Exception ex) { logger.LogError(ex, "Failed to fetch sections from {Url}", url); throw; }
     }
 
     private async Task<UserDto> FetchUserAsync() {

@@ -12,6 +12,7 @@ public interface IExportRepository
     Task<IList<ExportJob>> FindByFormatAsync(ExportFormat format);
     Task<IList<ExportJob>> FindExpiredJobsAsync(DateTime before);
     Task<int> CountByUserIdTodayAsync(int userId);
+    Task<int> CountByStatusAndUserAsync(ExportStatus status, int userId);
     Task<ExportJob> AddAsync(ExportJob job);
     Task<ExportJob> UpdateAsync(ExportJob job);
     Task DeleteByJobIdAsync(string jobId);

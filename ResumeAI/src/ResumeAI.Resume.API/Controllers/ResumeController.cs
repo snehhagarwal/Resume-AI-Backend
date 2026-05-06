@@ -14,8 +14,9 @@ namespace ResumeAI.Resume.API.Controllers;
 public class ResumeController(IResumeService resumeService) : ControllerBase
 {
     private int CurrentUserId =>
-        int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? throw new UnauthorizedAccessException());
+        int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                  ?? User.FindFirst("sub")?.Value 
+                  ?? throw new UnauthorizedAccessException());
 
     private SubscriptionPlan CurrentUserPlan =>
         Enum.TryParse<SubscriptionPlan>(User.FindFirstValue("plan"), out var plan)
@@ -54,9 +55,15 @@ public class ResumeController(IResumeService resumeService) : ControllerBase
     {
         var resume = await resumeService.GetResumeByIdAsync(resumeId);
         if (resume is null) return NotFound();
+        
+        // Ownership check: only owner can see private resumes
+        if (!resume.IsPublic && resume.UserId != CurrentUserId)
+            return Forbid();
+
         // Increment view count for public resumes viewed by others
         if (resume.IsPublic && resume.UserId != CurrentUserId)
             await resumeService.IncrementViewCountAsync(resumeId);
+            
         return Ok(ApiResponse<ResumeDto>.Ok(resume));
     }
 
@@ -79,7 +86,10 @@ public class ResumeController(IResumeService resumeService) : ControllerBase
     public async Task<IActionResult> GetByTemplate(int templateId)
     {
         var resumes = await resumeService.GetResumesByTemplateAsync(templateId);
-        return Ok(ApiResponse<IList<ResumeDto>>.Ok(resumes));
+        // Filter: only show the user's resumes for this template (unless we wanted to show all public ones, 
+        // but typically this endpoint is used by the builder to show user's own resumes)
+        var filtered = resumes.Where(r => r.UserId == CurrentUserId).ToList();
+        return Ok(ApiResponse<IList<ResumeDto>>.Ok(filtered));
     }
 
     [HttpPut("{resumeId:int}")]
@@ -87,7 +97,7 @@ public class ResumeController(IResumeService resumeService) : ControllerBase
     {
         try
         {
-            var resume = await resumeService.UpdateResumeAsync(resumeId, CurrentUserId, request);
+            var resume = await resumeService.UpdateResumeAsync(resumeId, CurrentUserId, CurrentUserPlan, request);
             return Ok(ApiResponse<ResumeDto>.Ok(resume));
         }
         catch (KeyNotFoundException ex) { return NotFound(ApiResponse<ResumeDto>.Fail(ex.Message)); }
@@ -119,10 +129,13 @@ public class ResumeController(IResumeService resumeService) : ControllerBase
     }
 
     [HttpPut("{resumeId:int}/ats-score")]
-    [Authorize(Roles = "ADMIN")]
-    public async Task<IActionResult> UpdateAtsScore(int resumeId, [FromBody] int score)
+    public async Task<IActionResult> UpdateAtsScore(int resumeId, [FromBody] UpdateAtsScoreRequest request)
     {
-        await resumeService.UpdateAtsScoreAsync(resumeId, score);
+        var resume = await resumeService.GetResumeByIdAsync(resumeId);
+        if (resume == null) return NotFound();
+        if (resume.UserId != CurrentUserId) return Forbid();
+
+        await resumeService.UpdateAtsScoreAsync(resumeId, request.Score);
         return NoContent();
     }
 

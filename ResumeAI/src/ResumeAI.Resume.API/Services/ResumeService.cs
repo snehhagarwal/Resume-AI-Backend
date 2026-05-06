@@ -6,11 +6,14 @@ using ResumeAI.Shared.Enums;
 
 namespace ResumeAI.Resume.API.Services;
 
-public class ResumeService(IResumeRepository resumeRepo) : IResumeService
+public class ResumeService(IResumeRepository resumeRepo, IHttpClientFactory httpClientFactory) : IResumeService
 {
+    private HttpClient TemplateClient => httpClientFactory.CreateClient("TemplateApi");
+
     public async Task<ResumeDto> CreateResumeAsync(int userId, SubscriptionPlan plan, CreateResumeRequest request)
     {
         await EnforceResumeLimitAsync(userId, plan);
+        await EnforceTemplateAccessAsync(request.TemplateId, plan);
 
         var resume = new Resume.API.Entities.ResumeRecord
         {
@@ -36,13 +39,18 @@ public class ResumeService(IResumeRepository resumeRepo) : IResumeService
         return resumes.Select(MapToDto).ToList();
     }
 
-    public async Task<ResumeDto> UpdateResumeAsync(int resumeId, int userId, UpdateResumeRequest request)
+    public async Task<ResumeDto> UpdateResumeAsync(int resumeId, int userId, SubscriptionPlan plan, UpdateResumeRequest request)
     {
         var resume = await resumeRepo.FindByResumeIdAsync(resumeId)
                      ?? throw new KeyNotFoundException("Resume not found.");
 
         if (resume.UserId != userId)
             throw new UnauthorizedAccessException("You do not own this resume.");
+
+        if (resume.TemplateId != request.TemplateId)
+        {
+            await EnforceTemplateAccessAsync(request.TemplateId, plan);
+        }
 
         resume.Title = request.Title;
         resume.TargetJobTitle = request.TargetJobTitle;
@@ -161,6 +169,27 @@ public class ResumeService(IResumeRepository resumeRepo) : IResumeService
     {
         var resume = await resumeRepo.FindWithSectionsAsync(resumeId);
         return resume is null ? null : MapToDto(resume);
+    }
+
+    public async Task EnforceTemplateAccessAsync(int templateId, SubscriptionPlan userPlan)
+    {
+        if (userPlan == SubscriptionPlan.PREMIUM) return;
+
+        try
+        {
+            var response = await TemplateClient.GetAsync($"templates/{templateId}");
+            if (!response.IsSuccessStatusCode) return; 
+
+            var template = await response.Content.ReadFromJsonAsync<ApiResponse<TemplateDto>>();
+            if (template?.Data?.IsPremium == true)
+            {
+                throw new InvalidOperationException($"Template '{template.Data.Name}' requires a Premium subscription. Elevate your plan in the Profile section to use this layout!");
+            }
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            // Silently allow if Template.API is down to avoid blocking core resume creation
+        }
     }
 
     public async Task EnforceResumeLimitAsync(int userId, SubscriptionPlan plan)

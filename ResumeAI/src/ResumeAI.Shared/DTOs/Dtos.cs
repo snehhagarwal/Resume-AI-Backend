@@ -52,6 +52,8 @@ public record UpdateResumeRequest(
     int TemplateId,
     string Language,
     ResumeStatus Status);
+    
+public record UpdateAtsScoreRequest(int Score);
 
 public record ResumeDto(
     int ResumeId,

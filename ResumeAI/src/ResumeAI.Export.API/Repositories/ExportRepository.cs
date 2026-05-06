@@ -40,6 +40,9 @@ public class ExportRepository(ExportDbContext db) : IExportRepository
             DateOnly.FromDateTime(j.RequestedAt) == today);
     }
 
+    public Task<int> CountByStatusAndUserAsync(ExportStatus status, int userId)
+        => db.ExportJobs.CountAsync(j => j.Status == status && j.UserId == userId);
+
     public async Task<ExportJob> AddAsync(ExportJob job)
     {
         db.ExportJobs.Add(job);

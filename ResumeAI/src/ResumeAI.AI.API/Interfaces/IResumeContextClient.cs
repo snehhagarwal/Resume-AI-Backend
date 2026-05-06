@@ -26,4 +26,7 @@ public interface IResumeContextClient
     /// be fetched (callers decide how to handle that).
     /// </summary>
     Task<string> BuildResumeContextAsync(int resumeId);
+    
+    /// <summary>Updates the ATS score for a specific resume in the Resume API.</summary>
+    Task<bool> UpdateAtsScoreAsync(int resumeId, int score);
 }

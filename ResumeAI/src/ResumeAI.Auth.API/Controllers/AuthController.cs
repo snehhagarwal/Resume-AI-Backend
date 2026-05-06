@@ -51,6 +51,10 @@ public class AuthController(IAuthService authService) : ControllerBase
     public async Task<IActionResult> Logout()
     {
         await authService.LogoutAsync(CurrentUserId);
+        
+        // Clear any lingering OAuth or session cookies
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        
         return NoContent();
     }
 
@@ -114,8 +118,8 @@ public class AuthController(IAuthService authService) : ControllerBase
     [HttpPut("subscription")]
     public async Task<IActionResult> UpdateSubscription([FromBody] UpdateSubscriptionRequest request)
     {
-        await authService.UpdateSubscriptionAsync(CurrentUserId, request.Plan);
-        return NoContent();
+        var response = await authService.UpdateSubscriptionAsync(CurrentUserId, request.Plan);
+        return Ok(ApiResponse<AuthResponse>.Ok(response));
     }
 
     [Authorize]
@@ -151,8 +155,8 @@ public class AuthController(IAuthService authService) : ControllerBase
     [HttpPut("users/{userId:int}/subscription")]
     public async Task<IActionResult> AdminUpdateSubscription(int userId, [FromBody] UpdateSubscriptionRequest request)
     {
-        await authService.UpdateSubscriptionAsync(userId, request.Plan);
-        return NoContent();
+        var response = await authService.UpdateSubscriptionAsync(userId, request.Plan);
+        return Ok(ApiResponse<AuthResponse>.Ok(response));
     }
 
     [Authorize(Roles = "ADMIN")]
@@ -193,26 +197,9 @@ public class AuthController(IAuthService authService) : ControllerBase
         var props = new AuthenticationProperties
         {
             RedirectUri = Url.Action(nameof(OAuthCallback), new { provider = "google" }),
-            Items       = { ["returnUrl"] = returnUrl }
+            Items       = { ["returnUrl"] = returnUrl, ["prompt"] = "select_account" }
         };
         return Challenge(props, "Google");
-    }
-
-    // ─── LinkedIn OAuth2 ──────────────────────────────────────────
-
-    /// <summary>
-    /// Redirects the browser to LinkedIn's OAuth2 consent screen.
-    /// </summary>
-    [AllowAnonymous]
-    [HttpGet("oauth/linkedin")]
-    public IActionResult LoginWithLinkedIn([FromQuery] string? returnUrl = "/")
-    {
-        var props = new AuthenticationProperties
-        {
-            RedirectUri = Url.Action(nameof(OAuthCallback), new { provider = "linkedin" }),
-            Items       = { ["returnUrl"] = returnUrl }
-        };
-        return Challenge(props, "LinkedIn");
     }
 
     // ─── Shared OAuth Callback ────────────────────────────────────
@@ -255,7 +242,6 @@ public class AuthController(IAuthService authService) : ControllerBase
         var authProvider = provider.ToLowerInvariant() switch
         {
             "google"   => AuthProvider.GOOGLE,
-            "linkedin" => AuthProvider.LINKEDIN,
             _          => throw new ArgumentOutOfRangeException(
                               nameof(provider), $"Unknown provider: {provider}")
         };

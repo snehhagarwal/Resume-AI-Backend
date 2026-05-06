@@ -9,20 +9,9 @@ using ResumeAI.Notification.API.Hubs;
 using ResumeAI.Shared.DTOs;
 using ResumeAI.Shared.Enums;
 
-namespace ResumeAI.Notification.API.Services;
+using ResumeAI.Notification.API.Interfaces;
 
-public interface INotificationService
-{
-    Task<NotificationDto> SendAsync(int recipientId, string title, string message,
-        NotificationType type, NotificationChannel channel = NotificationChannel.APP,
-        string? relatedId = null, string? relatedType = null);
-    Task SendBulkAsync(SendBulkNotificationRequest request, IList<int> recipientIds);
-    Task<IList<NotificationDto>> GetByRecipientAsync(int recipientId);
-    Task<int> GetUnreadCountAsync(int recipientId);
-    Task MarkAsReadAsync(int notificationId);
-    Task MarkAllReadAsync(int recipientId);
-    Task DeleteAsync(int notificationId);
-}
+namespace ResumeAI.Notification.API.Services;
 
 public class NotificationService(
     NotificationDbContext db,
@@ -33,7 +22,7 @@ public class NotificationService(
     public async Task<NotificationDto> SendAsync(
         int recipientId, string title, string message,
         NotificationType type, NotificationChannel channel = NotificationChannel.APP,
-        string? relatedId = null, string? relatedType = null)
+        string? relatedId = null, string? relatedType = null, string? recipientEmail = null)
     {
         var notification = new NotificationRecord
         {
@@ -49,9 +38,17 @@ public class NotificationService(
         db.Notifications.Add(notification);
         await db.SaveChangesAsync();
 
-        if (channel == NotificationChannel.EMAIL)
+        // Trigger email if channel is EMAIL OR if a recipientEmail is explicitly provided
+        if (channel == NotificationChannel.EMAIL || !string.IsNullOrEmpty(recipientEmail))
         {
-            await SendEmailAsync(recipientId, title, message);
+            if (!string.IsNullOrEmpty(recipientEmail))
+            {
+                await SendEmailAsync(recipientId, recipientEmail, title, message);
+            }
+            else if (channel == NotificationChannel.EMAIL)
+            {
+                logger.LogWarning("Email channel requested for recipient {RecipientId} but no email provided.", recipientId);
+            }
         }
 
         // Push full notification DTO + updated unread count via SignalR
@@ -120,36 +117,40 @@ public class NotificationService(
 
     // ─── Email via MailKit ────────────────────────────────────────
 
-    private async Task SendEmailAsync(int recipientId, string subject, string body)
+    private async Task SendEmailAsync(int recipientId, string recipientEmail, string subject, string body)
     {
         try
         {
-            var smtpHost = config["Smtp:Host"] ?? "smtp.gmail.com";
+            var smtpHost = config["Smtp:Host"];
             var smtpPort = int.Parse(config["Smtp:Port"] ?? "587");
             var smtpUser = config["Smtp:Username"];
             var smtpPass = config["Smtp:Password"];
+            var senderName = config["Smtp:SenderName"] ?? "NextHire";
+            var senderEmail = config["Smtp:SenderEmail"] ?? smtpUser;
 
-            if (string.IsNullOrEmpty(smtpUser))
+            if (string.IsNullOrEmpty(smtpUser) || string.IsNullOrEmpty(smtpPass))
             {
-                logger.LogWarning("SMTP not configured — email not sent for recipient {RecipientId}", recipientId);
+                logger.LogWarning("SMTP credentials missing — email not sent for recipient {RecipientId}", recipientId);
                 return;
             }
 
             var email = new MimeMessage();
-            email.From.Add(MailboxAddress.Parse(smtpUser));
-            email.To.Add(MailboxAddress.Parse($"user{recipientId}@resumeai.dev")); // placeholder
+            email.From.Add(new MailboxAddress(senderName, senderEmail));
+            email.To.Add(MailboxAddress.Parse(recipientEmail));
             email.Subject = subject;
-            email.Body = new TextPart("html") { Text = $"<p>{body}</p>" };
+            email.Body = new TextPart("html") { Text = body };
 
             using var smtp = new SmtpClient();
             await smtp.ConnectAsync(smtpHost, smtpPort, SecureSocketOptions.StartTls);
             await smtp.AuthenticateAsync(smtpUser, smtpPass);
             await smtp.SendAsync(email);
             await smtp.DisconnectAsync(true);
+            
+            logger.LogInformation("Email sent successfully to {RecipientEmail}", recipientEmail);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to send email to recipient {RecipientId}", recipientId);
+            logger.LogError(ex, "Failed to send email to recipient {RecipientId} at {Email}", recipientId, recipientEmail);
         }
     }
 

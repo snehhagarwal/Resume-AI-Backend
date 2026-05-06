@@ -11,3 +11,14 @@ node_modules/
 *.suo
 *.swp
 *.orig
+.sonarqube/
+
+# React Build Output
+dist/
+build/
+
+# .NET Testing Output
+TestResults/
+
+# IDEs
+.idea/

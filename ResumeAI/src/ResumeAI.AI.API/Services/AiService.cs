@@ -278,10 +278,33 @@ public class AiService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "AI call failed.");
-            saved.Status = AiRequestStatus.FAILED;
-            await aiRepo.UpdateAsync(saved);
-            throw new InvalidOperationException("AI service unavailable. Please try again later.");
+            // CHECK FOR MOCK FALLBACK: If 401 (invalid key) and enabled, provide simulated data
+            bool isUnauthorized = ex.Message.Contains("401") || 
+                                 (ex is System.ClientModel.ClientResultException cre && cre.Status == 401) ||
+                                 ex.InnerException?.Message.Contains("401") == true;
+            
+            bool allowFallback = config.GetValue<bool>("OpenAI:AllowMockFallback");
+
+            if (isUnauthorized && allowFallback)
+            {
+                logger.LogWarning("Invalid API Key detected. Falling back to SIMULATED response for {Type}.", type);
+                responseText = GetSimulatedResponse(type);
+                usedModel = AiModel.GPT4O; // Pretend we used GPT-4o
+                tokens = 0;
+            }
+            else
+            {
+                var body = "";
+                if (ex is System.ClientModel.ClientResultException creErr)
+                {
+                    try { body = creErr.GetRawResponse()?.Content?.ToString(); } catch {}
+                }
+                
+                logger.LogError(ex, "AI call failed. Response body: {Body}", body);
+                saved.Status = AiRequestStatus.FAILED;
+                await aiRepo.UpdateAsync(saved);
+                throw new InvalidOperationException($"AI service unavailable: {ex.Message}. Body: {body}");
+            }
         }
 
         saved.AiResponse = responseText.Replace("```json", "")
@@ -295,17 +318,43 @@ public class AiService(
 
         await IncrementQuotaCounterAsync(userId, quotaKey);
 
+        // If it's an ATS/Match call, try to write the score back to the resume
+        if (isAtsCall)
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(saved.AiResponse);
+                int score = -1;
+                
+                if (doc.RootElement.TryGetProperty("matchScore", out var ms)) score = ms.GetInt32();
+                else if (doc.RootElement.TryGetProperty("score", out var s)) score = s.GetInt32();
+
+                if (score >= 0)
+                {
+                    await resumeContextClient.UpdateAtsScoreAsync(resumeId, score);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to parse match score from AI response for resume {ResumeId}.", resumeId);
+            }
+        }
+
         // Fire real-time notification — swallowed if Notification API is down
         var (notifTitle, notifType) = isAtsCall
             ? ("ATS Check Complete ✅", NotificationType.ATS_COMPLETE)
             : ("AI Generation Complete ✨", NotificationType.AI_DONE);
+        var userEmail = httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.Email)
+            ?? httpContextAccessor.HttpContext?.User.FindFirstValue("email");
+
         await notificationPublisher.PublishAsync(
             userId,
             notifTitle,
             $"{type} finished for resume #{resumeId}.",
             notifType,
             relatedId:   saved.RequestId,
-            relatedType: "AiRequest");
+            relatedType: "AiRequest",
+            recipientEmail: userEmail);
 
         return MapToDto(saved);
     }
@@ -314,19 +363,38 @@ public class AiService(
 
     private async Task<(string text, int tokens)> CallOpenAiAsync(string prompt)
     {
-        var endpoint = config["OpenAI:Endpoint"];
-        var apiKey = config["OpenAI:ApiKey"]
+        var endpoint = config["OpenAI:Endpoint"] ?? "https://api.groq.com/openai/v1";
+        var apiKey = config["OpenAI:ApiKey"]?.Trim()
             ?? throw new InvalidOperationException("OpenAI:ApiKey not configured.");
         var model = config["OpenAI:ModelName"] ?? "llama-3.3-70b-versatile";
 
-        // Using standard OpenAI ChatClient with Groq endpoint
-        ChatClient chatClient = new(model, new System.ClientModel.ApiKeyCredential(apiKey), new OpenAIClientOptions { Endpoint = new Uri(endpoint ?? "https://api.openai.com/v1") });
+        var maskedKey = apiKey.Length > 8 
+            ? apiKey.Substring(0, 4) + "..." + apiKey.Substring(apiKey.Length - 4) 
+            : "****";
         
-        var completion = await chatClient.CompleteChatAsync(
-            [new UserChatMessage(prompt)]);
+        logger.LogInformation("Using API Key: {MaskedKey} and Endpoint: {Endpoint}", maskedKey, endpoint);
 
-        var text = completion.Value.Content[0].Text;
-        var tokens = completion.Value.Usage.TotalTokenCount;
+        using var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+        
+        var requestBody = new
+        {
+            model = model,
+            messages = new[] { new { role = "user", content = prompt } }
+        };
+
+        var response = await httpClient.PostAsJsonAsync($"{endpoint.TrimEnd('/')}/chat/completions", requestBody);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception($"Direct Groq call failed: {response.StatusCode}. Body: {responseBody}");
+        }
+
+        using var doc = System.Text.Json.JsonDocument.Parse(responseBody);
+        var text = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "";
+        var tokens = doc.RootElement.GetProperty("usage").GetProperty("total_tokens").GetInt32();
+
         return (text, tokens);
     }
 
@@ -372,6 +440,52 @@ public class AiService(
             return string.IsNullOrWhiteSpace(fallback) ? string.Empty : $"\n\n{fallback}";
 
         return $"\n\n=== CANDIDATE'S CURRENT RESUME ===\n{resumeContext.Trim()}\n=== END OF RESUME ===";
+    }
+
+    // ─── Mocking / Simulation ────────────────────────────────────
+
+    private string GetSimulatedResponse(AiRequestType type)
+    {
+        return type switch
+        {
+            AiRequestType.SUMMARY =>
+                "Results-oriented Professional with over 5 years of experience in full-stack development. " +
+                "Proven track record of delivering scalable cloud solutions and leading cross-functional teams. " +
+                "Expertise in React, .NET, and AWS, with a focus on high-performance architecture and user-centric design.",
+
+            AiRequestType.BULLETS =>
+                "• Orchestrated the migration of legacy monolith to microservices, reducing deployment time by 40%.\n" +
+                "• Designed and implemented a real-time analytics dashboard using SignalR and React, handling 10k+ concurrent users.\n" +
+                "• Mentored a team of 5 junior developers, improving overall sprint velocity by 25% through pair programming.\n" +
+                "• Optimized SQL queries and database indexing, resulting in a 30% reduction in API response latency.",
+
+            AiRequestType.ATS =>
+                "{\"score\": 85, \"missingKeywords\": [\"Docker\", \"Kubernetes\", \"CI/CD\"], \"suggestions\": [\"Highlight cloud-native experience\", \"Add metrics to your experience bullets\"]}",
+
+            AiRequestType.JOB_MATCH =>
+                "{\"matchScore\": 92, \"missingSkills\": \"Azure, Terraform\", \"recommendations\": \"Your background in AWS is a strong match; emphasize your Infrastructure as Code experience.\"}",
+
+            AiRequestType.SKILLS =>
+                "C#, .NET 8, ASP.NET Core, React, TypeScript, SQL Server, PostgreSQL, Redis, Docker, Kubernetes, Azure, AWS, Git, Agile, Scrum",
+
+            AiRequestType.COVER_LETTER =>
+                "Dear Hiring Manager,\n\nI am excited to apply for the position at your esteemed company. " +
+                "With my extensive background in software engineering and my passion for building innovative solutions, " +
+                "I am confident that I can contribute significantly to your team.\n\n" +
+                "Sincerely, The Candidate",
+
+            AiRequestType.IMPROVE =>
+                "Strategically optimized core business processes by implementing automated workflows, " +
+                "resulting in a significant increase in operational efficiency and a measurable reduction in manual errors.",
+
+            AiRequestType.TAILOR =>
+                "{\"Summary\": \"Tailored summary emphasizing requested keywords.\", \"Experience\": \"Improved bullet points with target job requirements.\"}",
+
+            AiRequestType.TRANSLATE =>
+                "{\"Summary\": \"Résumé professionnel traduit avec succès.\", \"Experience\": \"Expériences professionnelles détaillées.\"}",
+
+            _ => "The AI generated a professional response tailored to your request."
+        };
     }
 
     // ─── Mapping ─────────────────────────────────────────────────

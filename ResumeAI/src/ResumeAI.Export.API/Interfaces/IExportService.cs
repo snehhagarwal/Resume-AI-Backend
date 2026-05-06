@@ -12,5 +12,5 @@ public interface IExportService
     Task<byte[]> DownloadFileAsync(string jobId);
     Task DeleteExportAsync(string jobId);
     Task CleanupExpiredExportsAsync();
-    Task<IDictionary<string, int>> GetExportStatsAsync();
+    Task<IDictionary<string, int>> GetExportStatsAsync(int userId);
 }

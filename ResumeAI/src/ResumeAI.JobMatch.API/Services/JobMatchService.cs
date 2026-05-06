@@ -2,6 +2,8 @@ using ResumeAI.JobMatch.API.Entities;
 using ResumeAI.JobMatch.API.Interfaces;
 using ResumeAI.Shared.DTOs;
 using ResumeAI.Shared.Enums;
+using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
 namespace ResumeAI.JobMatch.API.Services;
 
 public class JobMatchService(
@@ -9,6 +11,7 @@ public class JobMatchService(
     IAiServiceClient aiClient,
     IJobSearchClient jobSearchClient,
     INotificationPublisher notificationPublisher,
+    IHttpContextAccessor httpContextAccessor,
     ILogger<JobMatchService> logger) : IJobMatchService
 {
     public async Task<JobMatchDto> AnalyzeJobFit(int userId, AnalyzeJobFitRequest request)
@@ -30,6 +33,9 @@ public class JobMatchService(
         };
 
         var saved = await matchRepo.Add(match);
+        var userEmail = httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.Email)
+            ?? httpContextAccessor.HttpContext?.User.FindFirstValue("email");
+
         // Fire real-time notification
         await notificationPublisher.PublishAsync(
             userId,
@@ -37,7 +43,8 @@ public class JobMatchService(
             $"{request.JobTitle}{(request.CompanyName is not null ? $" at {request.CompanyName}" : "")} — {match.MatchScore}% match.",
             NotificationType.JOB_MATCH,
             relatedId:   saved.MatchId.ToString(),
-            relatedType: "JobMatch");   
+            relatedType: "JobMatch",
+            recipientEmail: userEmail);
         return MapToDto(saved);
     }
 

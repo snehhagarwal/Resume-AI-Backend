@@ -69,14 +69,33 @@ public class QuestPdfRenderer(ILogger<QuestPdfRenderer> logger) : IPdfRenderer
             </html>";
 
         // 3. Render with Puppeteer
-        var browserFetcher = new BrowserFetcher();
-        await browserFetcher.DownloadAsync();
-        
-        using var browser = await Puppeteer.LaunchAsync(new LaunchOptions { 
+        var launchOptions = new LaunchOptions { 
             Headless = true,
-            Args = new[] { "--no-sandbox", "--disable-setuid-sandbox" }
-        });
+            Args = new[] { 
+                "--no-sandbox", 
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu"
+            }
+        };
 
+        var executablePath = Environment.GetEnvironmentVariable("PUPPETEER_EXECUTABLE_PATH") ?? "/usr/bin/chromium";
+        
+        // Safety check: if the path doesn't exist, try common alternatives inside Linux containers
+        if (!System.IO.File.Exists(executablePath))
+        {
+            logger.LogWarning("Configured Chromium path not found: {Path}. Searching alternatives...", executablePath);
+            var alternatives = new[] { "/usr/bin/chromium-browser", "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable" };
+            foreach (var alt in alternatives)
+            {
+                if (System.IO.File.Exists(alt)) { executablePath = alt; break; }
+            }
+        }
+
+        logger.LogInformation("Launching Puppeteer using: {Path}", executablePath);
+        launchOptions.ExecutablePath = executablePath;
+
+        using var browser = await Puppeteer.LaunchAsync(launchOptions);
         using var page = await browser.NewPageAsync();
         
         // CRITICAL: Force 'screen' media so grid/colors aren't stripped by 'print' defaults
