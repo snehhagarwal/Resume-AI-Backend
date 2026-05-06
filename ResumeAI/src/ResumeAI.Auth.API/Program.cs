@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -24,6 +25,14 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+    // Clear the known networks and proxies so it accepts forwarded headers from the Docker bridge network
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // ─── JWT + OAuth Authentication ───────────────────────────────────
 var jwtSecret = builder.Configuration["Jwt:Secret"]
@@ -71,8 +80,9 @@ builder.Services.AddAuthentication(opts =>
                         ?? throw new InvalidOperationException("OAuth:Google:ClientId is not configured.");
     opts.ClientSecret = builder.Configuration["OAuth:Google:ClientSecret"]
                         ?? throw new InvalidOperationException("OAuth:Google:ClientSecret is not configured.");
-    // /signin-google is the default — keep it to avoid any CORS confusion.
-    opts.CallbackPath     = "/signin-google";
+    
+    // Set the callback path to include the gateway prefix so YARP routes it properly
+    opts.CallbackPath     = "/api/auth/signin-google";
     opts.SaveTokens       = false; // We issue our own JWT; no need to persist Google tokens.
     opts.Scope.Add("profile");
     opts.Scope.Add("email");
@@ -125,6 +135,8 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 // ─── Auto-migrate on startup ─────────────────────────────────────
 using (var scope = app.Services.CreateScope())
