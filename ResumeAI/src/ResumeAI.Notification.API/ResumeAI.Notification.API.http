@@ -1,0 +1,6 @@
+@ResumeAI.Notification.API_HostAddress = http://localhost:5252
+
+GET {{ResumeAI.Notification.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

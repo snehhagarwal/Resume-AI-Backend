@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <div class="resume-container">
+        <header style="padding: 40px; border-bottom: 4px solid #1a1a1a;">
+            <h1>{{FullName}}</h1>
+            <div class="subtitle">{{TargetJobTitle}}</div>
+        </header>
+
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="table-layout: fixed;">
+            <tr>
+                <!-- Sidebar -->
+                <td width="30%" valign="top" bgcolor="#f8fafc" style="padding: 30px; border-right: 1px solid #e2e8f0;">
+                    <section class="section">
+                        <h2>Contact</h2>
+                        <div class="content">{{Email}}</div>
+                        <div class="content">{{Phone}}</div>
+                    </section>
+                    
+                    <section class="section">
+                        <h2>Skills</h2>
+                        <div class="content">{{SKILLS}}</div>
+                    </section>
+
+                    <section class="section">
+                        <h2>Languages</h2>
+                        <div class="content">{{LANGUAGES}}</div>
+                    </section>
+                </td>
+
+                <!-- Main Content -->
+                <td width="70%" valign="top" style="padding: 40px;">
+                    <section class="section">
+                        <h2>Professional Summary</h2>
+                        <div class="content">{{SUMMARY}}</div>
+                    </section>
+
+                    <section class="section">
+                        <h2>Work Experience</h2>
+                        <div class="content">{{EXPERIENCE}}</div>
+                    </section>
+
+                    <section class="section">
+                        <h2>Education</h2>
+                        <div class="content">{{EDUCATION}}</div>
+                    </section>
+
+                    <section class="section">
+                        <h2>Projects</h2>
+                        <div class="content">{{PROJECTS}}</div>
+                    </section>
+                </td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>

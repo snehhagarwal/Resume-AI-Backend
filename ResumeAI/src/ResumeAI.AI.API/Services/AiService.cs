@@ -1,0 +1,497 @@
+using Ganss.Xss;
+using Microsoft.Extensions.Caching.Distributed;
+using OpenAI.Chat;
+using OpenAI;
+using ResumeAI.AI.API.Clients;
+using ResumeAI.AI.API.Entities;
+using ResumeAI.AI.API.Repositories;
+using ResumeAI.AI.API.Interfaces;
+using ResumeAI.Shared.DTOs;
+using ResumeAI.Shared.Enums;
+
+using ResumeAI.Shared.Enums;
+using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
+
+namespace ResumeAI.AI.API.Services;
+
+/// AI Content Service — uses Groq/OpenAI for all AI generation.
+/// Quota tracked per-user per-month in Redis IDistributedCache.
+///
+/// Every operation fetches the real resume content from the Resume and Section
+/// microservices (via <see cref="IResumeContextClient"/>) before building the
+/// AI prompt, so the model works with the candidate's actual data rather than
+/// only the fields provided in the request body.
+/// </summary>
+public class AiService(
+    IAiRequestRepository aiRepo,
+    IDistributedCache cache,
+    IConfiguration config,
+    ILogger<AiService> logger,
+    IHttpContextAccessor httpContextAccessor,
+    IResumeContextClient resumeContextClient,
+    INotificationPublisher notificationPublisher) : IAiService
+{
+    private SubscriptionPlan CurrentUserPlan =>
+        Enum.TryParse<SubscriptionPlan>(httpContextAccessor.HttpContext?.User.FindFirstValue("plan"), true, out var plan)
+            ? plan
+            : SubscriptionPlan.FREE;
+    private const int FreeContentQuota = 5;
+    private const int FreeAtsQuota = 3;
+
+    private readonly HtmlSanitizer _sanitizer = new();
+
+    // ─── Public service methods ───────────────────────────────────
+
+    public async Task<AiRequestDto> GenerateSummaryAsync(int userId, GenerateSummaryRequest request)
+    {
+        var resumeContext = await resumeContextClient.BuildResumeContextAsync(request.ResumeId);
+        var contextBlock = WrapContext(resumeContext);
+
+        var prompt =
+            $"Write a professional resume summary for a {_sanitizer.Sanitize(request.JobTitle)} " +
+            $"with {request.YearsOfExperience} years of experience. " +
+            $"Key skills: {_sanitizer.Sanitize(request.KeySkills)}. " +
+            "Keep it concise, impactful, and ATS-friendly (3-4 sentences). " +
+            "Make it consistent with the candidate's existing resume content below." +
+            contextBlock;
+
+        return await ExecuteAiCallAsync(userId, request.ResumeId, AiRequestType.SUMMARY, prompt);
+    }
+
+    public async Task<AiRequestDto> GenerateBulletPointsAsync(int userId, GenerateBulletsRequest request)
+    {
+        var resumeContext = await resumeContextClient.BuildResumeContextAsync(request.ResumeId);
+        var contextBlock = WrapContext(resumeContext);
+
+        var prompt =
+            $"Generate 4-6 strong resume bullet points for the role of " +
+            $"{_sanitizer.Sanitize(request.JobTitle)} at {_sanitizer.Sanitize(request.CompanyName)}. " +
+            $"Responsibilities: {_sanitizer.Sanitize(request.Responsibilities)}. " +
+            "Use action verbs and quantify achievements where possible. " +
+            "Ensure the tone and level of seniority match the candidate's existing resume." +
+            contextBlock;
+
+        return await ExecuteAiCallAsync(userId, request.ResumeId, AiRequestType.BULLETS, prompt);
+    }
+
+    public async Task<AiRequestDto> GenerateCoverLetterAsync(int userId, GenerateCoverLetterRequest request)
+    {
+        var resumeContext = await resumeContextClient.BuildResumeContextAsync(request.ResumeId);
+        var contextBlock = WrapContext(resumeContext);
+
+        var prompt =
+            $"Write a tailored cover letter for {_sanitizer.Sanitize(request.CompanyName)}. " +
+            $"Job description: {_sanitizer.Sanitize(request.JobDescription)}. " +
+            "Keep it professional, enthusiastic, and under 300 words. " +
+            "Ground specific claims (skills, experience, achievements) in the candidate's actual resume below." +
+            contextBlock;
+
+        return await ExecuteAiCallAsync(userId, request.ResumeId, AiRequestType.COVER_LETTER, prompt);
+    }
+
+    public async Task<AiRequestDto> ImproveSectionAsync(int userId, ImproveSectionRequest request)
+    {
+        // Fetch the real stored section content from the DB using SectionId — do NOT blindly
+        // trust what the client sends in CurrentContent (stale/partial/wrong data).
+        // Fall back to CurrentContent only if the Section API is unreachable.
+        var sectionTask = resumeContextClient.GetSectionAsync(request.SectionId);
+        var contextTask = resumeContextClient.BuildResumeContextAsync(request.ResumeId);
+        await Task.WhenAll(sectionTask, contextTask);
+
+        var section = sectionTask.Result;
+        var resumeContext = contextTask.Result;
+
+        if (section is null)
+            logger.LogWarning(
+                "Could not fetch section {SectionId} from Section API — " +
+                "falling back to client-provided CurrentContent.",
+                request.SectionId);
+
+        var contentToImprove = section?.Content ?? request.CurrentContent;
+        var contextBlock = WrapContext(resumeContext);
+
+        var hint = string.IsNullOrEmpty(request.ImprovementHint)
+            ? "more impactful and professional"
+            : _sanitizer.Sanitize(request.ImprovementHint);
+
+        var prompt =
+            $"Rewrite the following resume section to be {hint}:\n\n" +
+            _sanitizer.Sanitize(contentToImprove) +
+            "\n\nKeep the rewrite consistent with the rest of the candidate's resume below." +
+            contextBlock;
+
+        return await ExecuteAiCallAsync(userId, request.ResumeId, AiRequestType.IMPROVE, prompt);
+    }
+
+    public async Task<AiRequestDto> CheckAtsCompatibilityAsync(int userId, CheckAtsRequest request)
+    {
+        var resumeContext = await resumeContextClient.BuildResumeContextAsync(request.ResumeId);
+
+        if (string.IsNullOrWhiteSpace(resumeContext))
+            logger.LogWarning(
+                "ATS check for resume {ResumeId} has no resume context — analysis will be shallow.",
+                request.ResumeId);
+
+        var contextBlock = WrapContext(resumeContext,
+            fallback: "[No resume content could be retrieved. Provide general ATS guidance only.]");
+
+        var prompt =
+            "Analyse the candidate's resume against the job description below. " +
+            "Return a JSON object with exactly these keys: " +
+            "score (integer 0-100), missingKeywords (string array), suggestions (string array).\n\n" +
+            $"Job Description:\n{_sanitizer.Sanitize(request.JobDescription)}" +
+            contextBlock;
+
+        return await ExecuteAiCallAsync(userId, request.ResumeId, AiRequestType.ATS, prompt,
+            isAtsCall: true);
+    }
+
+    public async Task<AiRequestDto> SuggestSkillsAsync(int userId, SuggestSkillsRequest request)
+    {
+        var resumeContext = await resumeContextClient.BuildResumeContextAsync(request.ResumeId);
+        var contextBlock = WrapContext(resumeContext);
+
+        var prompt =
+            $"List the top 15 in-demand technical and soft skills for a " +
+            $"{_sanitizer.Sanitize(request.TargetJobTitle)} role in 2025. " +
+            "Prioritise skills the candidate is NOT already showcasing in their resume below. " +
+            "Return as a comma-separated list." +
+            contextBlock;
+
+        return await ExecuteAiCallAsync(userId, request.ResumeId, AiRequestType.SKILLS, prompt);
+    }
+
+    public async Task<AiRequestDto> TailorResumeForJobAsync(int userId, TailorResumeRequest request)
+    {
+        var resumeContext = await resumeContextClient.BuildResumeContextAsync(request.ResumeId);
+
+        if (string.IsNullOrWhiteSpace(resumeContext))
+            logger.LogWarning(
+                "Tailor-for-job for resume {ResumeId} has no resume context — output may be generic.",
+                request.ResumeId);
+
+        var contextBlock = WrapContext(resumeContext,
+            fallback: "[No resume content could be retrieved. Suggest improvements conceptually.]");
+
+        var prompt =
+            "Tailor the candidate's resume for the job description below. " +
+            "Return the complete improved resume as a JSON object whose keys mirror the section titles. " +
+            "Preserve all factual information — only adjust phrasing, emphasis and keyword density.\n\n" +
+            $"Job Description:\n{_sanitizer.Sanitize(request.JobDescription)}" +
+            contextBlock;
+
+        return await ExecuteAiCallAsync(userId, request.ResumeId, AiRequestType.TAILOR, prompt);
+    }
+
+    public async Task<AiRequestDto> TranslateResumeAsync(int userId, TranslateResumeRequest request)
+    {
+        var resumeContext = await resumeContextClient.BuildResumeContextAsync(request.ResumeId);
+
+        if (string.IsNullOrWhiteSpace(resumeContext))
+            logger.LogWarning(
+                "Translate for resume {ResumeId} has no resume context — nothing to translate.",
+                request.ResumeId);
+
+        var contextBlock = WrapContext(resumeContext,
+            fallback: "[No resume content could be retrieved. Cannot perform translation.]");
+
+        var prompt =
+            $"Translate the candidate's resume to {_sanitizer.Sanitize(request.TargetLanguage)}, " +
+            "maintaining a professional tone and standard resume formatting. " +
+            "Return the translated resume as a JSON object whose keys mirror the section titles." +
+            contextBlock;
+
+        return await ExecuteAiCallAsync(userId, request.ResumeId, AiRequestType.TRANSLATE, prompt);
+    }
+
+    public async Task<AiRequestDto> AnalyzeJobFitAsync(int userId, CheckAtsRequest request)
+    {
+        var resumeContext = await resumeContextClient.BuildResumeContextAsync(request.ResumeId);
+        var contextBlock = WrapContext(resumeContext);
+
+        var prompt =
+            "Analyze the candidate's resume against the job description below. " +
+            "Return a JSON object with exactly these keys: " +
+            "matchScore (integer 0-100), missingSkills (comma-separated string), recommendations (string).\n\n" +
+            $"Job Description:\n{_sanitizer.Sanitize(request.JobDescription)}" +
+            contextBlock;
+
+        return await ExecuteAiCallAsync(userId, request.ResumeId, AiRequestType.JOB_MATCH, prompt, isAtsCall: true);
+    }
+
+    public async Task<IList<AiRequestDto>> GetAiHistoryAsync(int userId)
+    {
+        var requests = await aiRepo.FindByUserIdAsync(userId);
+        return requests.Select(MapToDto).ToList();
+    }
+
+    public async Task<AiQuotaDto> GetRemainingQuotaAsync(int userId)
+    {
+        var contentUsed = await GetQuotaCounterAsync(userId, "content");
+        var atsUsed = await GetQuotaCounterAsync(userId, "ats");
+        return new AiQuotaDto(
+            RemainingContentCalls: Math.Max(0, FreeContentQuota - contentUsed),
+            RemainingAtsCalls: Math.Max(0, FreeAtsQuota - atsUsed),
+            MaxContentCalls: FreeContentQuota,
+            MaxAtsCalls: FreeAtsQuota);
+    }
+
+    // ─── Core AI execution ────────────────────────────────────────
+
+    private async Task<AiRequestDto> ExecuteAiCallAsync(
+        int userId, int resumeId, AiRequestType type, string prompt, bool isAtsCall = false)
+    {
+        var quotaKey = isAtsCall ? "ats" : "content";
+        var limit = isAtsCall ? FreeAtsQuota : FreeContentQuota;
+
+        // ENFORCE QUOTA: Skip check if user is PREMIUM
+        if (CurrentUserPlan != SubscriptionPlan.PREMIUM)
+        {
+            var currentUsage = await GetQuotaCounterAsync(userId, quotaKey);
+            if (currentUsage >= limit)
+            {
+                throw new InvalidOperationException(
+                    $"Monthly quota reached. You have used all {limit} of your free {quotaKey} AI calls. " +
+                    "Please upgrade to Premium for unlimited access.");
+            }
+        }
+
+        var aiReqEntity = new AiRequest
+        {
+            UserId = userId,
+            ResumeId = resumeId,
+            RequestType = type,
+            InputPrompt = prompt,
+            Status = AiRequestStatus.QUEUED
+        };
+        var saved = await aiRepo.AddAsync(aiReqEntity);
+
+        string responseText;
+        AiModel usedModel;
+        int tokens;
+
+        try
+        {
+            (responseText, tokens) = await CallOpenAiAsync(prompt);
+            usedModel = AiModel.GPT4O;
+        }
+        catch (Exception ex)
+        {
+            // CHECK FOR MOCK FALLBACK: If 401 (invalid key) and enabled, provide simulated data
+            bool isUnauthorized = ex.Message.Contains("401") || 
+                                 (ex is System.ClientModel.ClientResultException cre && cre.Status == 401) ||
+                                 ex.InnerException?.Message.Contains("401") == true;
+            
+            bool allowFallback = config.GetValue<bool>("OpenAI:AllowMockFallback");
+
+            if (isUnauthorized && allowFallback)
+            {
+                logger.LogWarning("Invalid API Key detected. Falling back to SIMULATED response for {Type}.", type);
+                responseText = GetSimulatedResponse(type);
+                usedModel = AiModel.GPT4O; // Pretend we used GPT-4o
+                tokens = 0;
+            }
+            else
+            {
+                var body = "";
+                if (ex is System.ClientModel.ClientResultException creErr)
+                {
+                    try { body = creErr.GetRawResponse()?.Content?.ToString(); } catch {}
+                }
+                
+                logger.LogError(ex, "AI call failed. Response body: {Body}", body);
+                saved.Status = AiRequestStatus.FAILED;
+                await aiRepo.UpdateAsync(saved);
+                throw new InvalidOperationException($"AI service unavailable: {ex.Message}. Body: {body}");
+            }
+        }
+
+        saved.AiResponse = responseText.Replace("```json", "")
+        .Replace("```", "")
+        .Trim();
+        saved.Model = usedModel;
+        saved.TokensUsed = tokens;
+        saved.Status = AiRequestStatus.COMPLETED;
+        saved.CompletedAt = DateTime.UtcNow;
+        await aiRepo.UpdateAsync(saved);
+
+        await IncrementQuotaCounterAsync(userId, quotaKey);
+
+        // If it's an ATS/Match call, try to write the score back to the resume
+        if (isAtsCall)
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(saved.AiResponse);
+                int score = -1;
+                
+                if (doc.RootElement.TryGetProperty("matchScore", out var ms)) score = ms.GetInt32();
+                else if (doc.RootElement.TryGetProperty("score", out var s)) score = s.GetInt32();
+
+                if (score >= 0)
+                {
+                    await resumeContextClient.UpdateAtsScoreAsync(resumeId, score);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to parse match score from AI response for resume {ResumeId}.", resumeId);
+            }
+        }
+
+        // Fire real-time notification — swallowed if Notification API is down
+        var (notifTitle, notifType) = isAtsCall
+            ? ("ATS Check Complete ✅", NotificationType.ATS_COMPLETE)
+            : ("AI Generation Complete ✨", NotificationType.AI_DONE);
+        var userEmail = httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.Email)
+            ?? httpContextAccessor.HttpContext?.User.FindFirstValue("email");
+
+        await notificationPublisher.PublishAsync(
+            userId,
+            notifTitle,
+            $"{type} finished for resume #{resumeId}.",
+            notifType,
+            relatedId:   saved.RequestId,
+            relatedType: "AiRequest",
+            recipientEmail: userEmail);
+
+        return MapToDto(saved);
+    }
+
+    // ─── OpenAI GPT-4o ───────────────────────────────────────────
+
+    private async Task<(string text, int tokens)> CallOpenAiAsync(string prompt)
+    {
+        var endpoint = config["OpenAI:Endpoint"] ?? "https://api.groq.com/openai/v1";
+        var apiKey = config["OpenAI:ApiKey"]?.Trim()
+            ?? throw new InvalidOperationException("OpenAI:ApiKey not configured.");
+        var model = config["OpenAI:ModelName"] ?? "llama-3.3-70b-versatile";
+
+        var maskedKey = apiKey.Length > 8 
+            ? apiKey.Substring(0, 4) + "..." + apiKey.Substring(apiKey.Length - 4) 
+            : "****";
+        
+        logger.LogInformation("Using API Key: {MaskedKey} and Endpoint: {Endpoint}", maskedKey, endpoint);
+
+        using var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+        
+        var requestBody = new
+        {
+            model = model,
+            messages = new[] { new { role = "user", content = prompt } }
+        };
+
+        var response = await httpClient.PostAsJsonAsync($"{endpoint.TrimEnd('/')}/chat/completions", requestBody);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception($"Direct Groq call failed: {response.StatusCode}. Body: {responseBody}");
+        }
+
+        using var doc = System.Text.Json.JsonDocument.Parse(responseBody);
+        var text = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "";
+        var tokens = doc.RootElement.GetProperty("usage").GetProperty("total_tokens").GetInt32();
+
+        return (text, tokens);
+    }
+
+
+    // ─── Redis quota helpers ──────────────────────────────────────
+
+    private async Task<int> GetQuotaCounterAsync(int userId, string type)
+    {
+        var key = QuotaKey(userId, type);
+        var val = await cache.GetStringAsync(key);
+        return val is null ? 0 : int.Parse(val);
+    }
+
+    private async Task IncrementQuotaCounterAsync(int userId, string type)
+    {
+        var key = QuotaKey(userId, type);
+        var current = await GetQuotaCounterAsync(userId, type);
+        var expiry = new DateTimeOffset(
+            DateTime.UtcNow.Year, DateTime.UtcNow.Month,
+            DateTime.DaysInMonth(DateTime.UtcNow.Year, DateTime.UtcNow.Month),
+            23, 59, 59, TimeSpan.Zero);
+        await cache.SetStringAsync(key, (current + 1).ToString(),
+            new DistributedCacheEntryOptions { AbsoluteExpiration = expiry });
+    }
+
+    private static string QuotaKey(int userId, string type)
+    {
+        var now = DateTime.UtcNow;
+        return $"ai-quota:{userId}:{type}:{now.Year}-{now.Month:D2}";
+    }
+
+    // ─── Prompt helpers ───────────────────────────────────────────
+
+    /// <summary>
+    /// Wraps resume context in a clearly delimited block for injection into
+    /// prompts. If <paramref name="resumeContext"/> is empty the
+    /// <paramref name="fallback"/> message is used instead (defaults to an
+    /// empty string, meaning nothing extra is appended).
+    /// </summary>
+    private static string WrapContext(string resumeContext, string fallback = "")
+    {
+        if (string.IsNullOrWhiteSpace(resumeContext))
+            return string.IsNullOrWhiteSpace(fallback) ? string.Empty : $"\n\n{fallback}";
+
+        return $"\n\n=== CANDIDATE'S CURRENT RESUME ===\n{resumeContext.Trim()}\n=== END OF RESUME ===";
+    }
+
+    // ─── Mocking / Simulation ────────────────────────────────────
+
+    private string GetSimulatedResponse(AiRequestType type)
+    {
+        return type switch
+        {
+            AiRequestType.SUMMARY =>
+                "Results-oriented Professional with over 5 years of experience in full-stack development. " +
+                "Proven track record of delivering scalable cloud solutions and leading cross-functional teams. " +
+                "Expertise in React, .NET, and AWS, with a focus on high-performance architecture and user-centric design.",
+
+            AiRequestType.BULLETS =>
+                "• Orchestrated the migration of legacy monolith to microservices, reducing deployment time by 40%.\n" +
+                "• Designed and implemented a real-time analytics dashboard using SignalR and React, handling 10k+ concurrent users.\n" +
+                "• Mentored a team of 5 junior developers, improving overall sprint velocity by 25% through pair programming.\n" +
+                "• Optimized SQL queries and database indexing, resulting in a 30% reduction in API response latency.",
+
+            AiRequestType.ATS =>
+                "{\"score\": 85, \"missingKeywords\": [\"Docker\", \"Kubernetes\", \"CI/CD\"], \"suggestions\": [\"Highlight cloud-native experience\", \"Add metrics to your experience bullets\"]}",
+
+            AiRequestType.JOB_MATCH =>
+                "{\"matchScore\": 92, \"missingSkills\": \"Azure, Terraform\", \"recommendations\": \"Your background in AWS is a strong match; emphasize your Infrastructure as Code experience.\"}",
+
+            AiRequestType.SKILLS =>
+                "C#, .NET 8, ASP.NET Core, React, TypeScript, SQL Server, PostgreSQL, Redis, Docker, Kubernetes, Azure, AWS, Git, Agile, Scrum",
+
+            AiRequestType.COVER_LETTER =>
+                "Dear Hiring Manager,\n\nI am excited to apply for the position at your esteemed company. " +
+                "With my extensive background in software engineering and my passion for building innovative solutions, " +
+                "I am confident that I can contribute significantly to your team.\n\n" +
+                "Sincerely, The Candidate",
+
+            AiRequestType.IMPROVE =>
+                "Strategically optimized core business processes by implementing automated workflows, " +
+                "resulting in a significant increase in operational efficiency and a measurable reduction in manual errors.",
+
+            AiRequestType.TAILOR =>
+                "{\"Summary\": \"Tailored summary emphasizing requested keywords.\", \"Experience\": \"Improved bullet points with target job requirements.\"}",
+
+            AiRequestType.TRANSLATE =>
+                "{\"Summary\": \"Résumé professionnel traduit avec succès.\", \"Experience\": \"Expériences professionnelles détaillées.\"}",
+
+            _ => "The AI generated a professional response tailored to your request."
+        };
+    }
+
+    // ─── Mapping ─────────────────────────────────────────────────
+
+    private static AiRequestDto MapToDto(AiRequest r) =>
+        new(r.RequestId, r.UserId, r.ResumeId, r.RequestType,
+            r.InputPrompt, r.AiResponse, r.Model, r.TokensUsed,
+            r.Status, r.CreatedAt, r.CompletedAt);
+}

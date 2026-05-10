@@ -1,0 +1,24 @@
+*.user
+.vs/
+bin/
+obj/
+.env
+*.env.local
+*.env.*.local
+node_modules/
+.DS_Store
+*.log
+*.suo
+*.swp
+*.orig
+.sonarqube/
+
+# React Build Output
+dist/
+build/
+
+# .NET Testing Output
+TestResults/
+
+# IDEs
+.idea/

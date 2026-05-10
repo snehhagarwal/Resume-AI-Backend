@@ -1,0 +1,84 @@
+.neon-creative {
+    display: flex;
+    min-height: 1000px;
+    background: #fff;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.neon-bar {
+    width: 80px;
+    background: #121212;
+    color: #00ffcc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 40px;
+}
+
+.initials {
+    font-size: 24px;
+    font-weight: 900;
+    border: 3px solid #00ffcc;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 50px;
+    overflow: hidden;
+}
+
+.v-text {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-size: 14px;
+    letter-spacing: 10px;
+    font-weight: 300;
+    opacity: 0.6;
+}
+
+.main-body {
+    flex: 1;
+    padding: 50px;
+}
+
+header h1 {
+    font-size: 48px;
+    margin: 0;
+    color: #121212;
+    font-weight: 900;
+}
+
+header h3 {
+    color: #ff0066;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    font-size: 16px;
+    margin-top: 5px;
+}
+
+.neon-section {
+    margin-top: 40px;
+}
+
+.neon-title {
+    font-size: 12px;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+}
+
+.text {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #444;
+    white-space: pre-wrap;
+}
+
+.two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-top: 30px;
+}
