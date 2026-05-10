@@ -33,7 +33,7 @@ services:
     ports:
       - "9001:8080"
     environment:
-      ConnectionStrings__AuthDb: "Host=postgres;Database=resumeai_auth;Username=postgres;Password=${POSTGRES_PASSWORD}"
+      ConnectionStrings__AuthDb: "Host=${RENDER_DB_HOST};Database=resumeai_auth;Username=${RENDER_DB_USER};Password=${RENDER_DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: ResumeAI
       Jwt__Audience: ResumeAI-Clients
@@ -51,7 +51,7 @@ services:
     ports:
       - "9002:8080"
     environment:
-      ConnectionStrings__ResumeDb: "Host=postgres;Database=resumeai_resume;Username=postgres;Password=${POSTGRES_PASSWORD}"
+      ConnectionStrings__ResumeDb: "Host=${RENDER_DB_HOST};Database=resumeai_resume;Username=${RENDER_DB_USER};Password=${RENDER_DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: ResumeAI
       Jwt__Audience: ResumeAI-Clients
@@ -65,7 +65,7 @@ services:
     ports:
       - "9003:8080"
     environment:
-      ConnectionStrings__SectionDb: "Host=postgres;Database=resumeai_section;Username=postgres;Password=${POSTGRES_PASSWORD}"
+      ConnectionStrings__SectionDb: "Host=${RENDER_DB_HOST};Database=resumeai_section;Username=${RENDER_DB_USER};Password=${RENDER_DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: ResumeAI
       Jwt__Audience: ResumeAI-Clients
@@ -79,7 +79,7 @@ services:
     ports:
       - "9004:8080"
     environment:
-      ConnectionStrings__AiDb: "Host=postgres;Database=resumeai_ai;Username=postgres;Password=${POSTGRES_PASSWORD}"
+      ConnectionStrings__AiDb: "Host=${RENDER_DB_HOST};Database=resumeai_ai;Username=${RENDER_DB_USER};Password=${RENDER_DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: ResumeAI
       Jwt__Audience: ResumeAI-Clients
@@ -101,7 +101,7 @@ services:
     ports:
       - "9005:8080"
     environment:
-      ConnectionStrings__TemplateDb: "Host=postgres;Database=resumeai_template;Username=postgres;Password=${POSTGRES_PASSWORD}"
+      ConnectionStrings__TemplateDb: "Host=${RENDER_DB_HOST};Database=resumeai_template;Username=${RENDER_DB_USER};Password=${RENDER_DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: ResumeAI
       Jwt__Audience: ResumeAI-Clients
@@ -115,7 +115,7 @@ services:
     ports:
       - "9006:8080"
     environment:
-      ConnectionStrings__ExportDb: "Host=postgres;Database=resumeai_export;Username=postgres;Password=${POSTGRES_PASSWORD}"
+      ConnectionStrings__ExportDb: "Host=${RENDER_DB_HOST};Database=resumeai_export;Username=${RENDER_DB_USER};Password=${RENDER_DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: ResumeAI
       Jwt__Audience: ResumeAI-Clients
@@ -136,7 +136,7 @@ services:
     ports:
       - "9007:8080"
     environment:
-      ConnectionStrings__JobMatchDb: "Host=postgres;Database=resumeai_jobmatch;Username=postgres;Password=${POSTGRES_PASSWORD}"
+      ConnectionStrings__JobMatchDb: "Host=${RENDER_DB_HOST};Database=resumeai_jobmatch;Username=${RENDER_DB_USER};Password=${RENDER_DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: ResumeAI
       Jwt__Audience: ResumeAI-Clients
@@ -152,7 +152,7 @@ services:
     ports:
       - "9008:8080"
     environment:
-      ConnectionStrings__NotificationDb: "Host=postgres;Database=resumeai_notification;Username=postgres;Password=${POSTGRES_PASSWORD}"
+      ConnectionStrings__NotificationDb: "Host=${RENDER_DB_HOST};Database=resumeai_notification;Username=${RENDER_DB_USER};Password=${RENDER_DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: ResumeAI
       Jwt__Audience: ResumeAI-Clients
@@ -189,14 +189,7 @@ services:
       - jobmatch
       - notification
 
-  web:
-    build:
-      context: ./src/ResumeAI.React
-      dockerfile: Dockerfile
-    ports:
-      - "9090:80"
-    depends_on:
-      - gateway
+
 
 volumes:
   postgres_data:
