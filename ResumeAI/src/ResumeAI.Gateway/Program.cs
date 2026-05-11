@@ -48,6 +48,8 @@ var app = builder.Build();
 
 app.UseCors("AllowFrontend");
 
+app.UseWebSockets(); // Required for SignalR WebSocket proxying through YARP
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapReverseProxy();
