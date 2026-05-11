@@ -12,7 +12,7 @@ using ResumeAI.Shared.Enums;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Http;
-using ResumeAI.Export.API.Models;
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace ResumeAI.Export.API.Services;
 
@@ -23,6 +23,7 @@ public class ExportService(
     INotificationPublisher notificationPublisher,
     IHttpClientFactory httpClientFactory,
     IHttpContextAccessor httpContextAccessor,
+    IDistributedCache cache,
     ILogger<ExportService> logger) : IExportService
 {
     // ... (Public API methods like ExportToPdfAsync, ExportToDocxAsync, etc. remain exactly as they are)
@@ -111,8 +112,31 @@ public class ExportService(
 
     public async Task<byte[]> DownloadFileAsync(string jobId)
     {
+        logger.LogInformation("Attempting to download file for JobId: {JobId}", jobId);
         var job = await exportRepo.FindByJobIdAsync(jobId) ?? throw new KeyNotFoundException();
-        if (job.FileUrl.StartsWith("local://")) return await File.ReadAllBytesAsync(Path.Combine(Directory.GetCurrentDirectory(), "exports", job.FileUrl.Replace("local://", "")));
+
+        if (job.FileUrl.StartsWith("redis://"))
+        {
+            var key = job.FileUrl.Replace("redis://", "");
+            logger.LogInformation("Fetching file from Redis with key: {Key}", key);
+            var bytes = await cache.GetAsync(key);
+            if (bytes == null)
+            {
+                logger.LogWarning("File not found in Redis for JobId: {JobId}", jobId);
+                throw new FileNotFoundException("Resume file expired or not found in cache.");
+            }
+            logger.LogInformation("Successfully retrieved {Size} bytes from Redis", bytes.Length);
+            return bytes;
+        }
+
+        if (job.FileUrl.StartsWith("local://"))
+        {
+            var path = Path.Combine(Directory.GetCurrentDirectory(), "exports", job.FileUrl.Replace("local://", ""));
+            logger.LogInformation("Fetching file from local storage: {Path}", path);
+            return await File.ReadAllBytesAsync(path);
+        }
+
+        logger.LogInformation("Fetching file from Azure Blob: {Url}", job.FileUrl);
         return (await new BlobClient(new Uri(job.FileUrl)).DownloadContentAsync()).Value.Content.ToArray();
     }
 
@@ -249,18 +273,14 @@ public class ExportService(
         if (!string.IsNullOrEmpty(auth)) c.DefaultRequestHeaders.Authorization = AuthenticationHeaderValue.Parse(auth);
     }
 
-    private async Task<string> UploadToBlobAsync(string id, byte[] data, string type) {
-        var conn = config["AzureBlob:ConnectionString"];
-        if (string.IsNullOrEmpty(conn)) {
-            var ext = type switch { "application/pdf" => ".pdf", "application/json" => ".json", _ => ".docx" };
-            var dir = Path.Combine(Directory.GetCurrentDirectory(), "exports"); Directory.CreateDirectory(dir);
-            await File.WriteAllBytesAsync(Path.Combine(dir, id + ext), data); return $"local://{id + ext}";
-        }
-        var container = new BlobServiceClient(conn).GetBlobContainerClient(config["AzureBlob:ContainerName"] ?? "resume-exports");
-        await container.CreateIfNotExistsAsync();
-        var client = container.GetBlobClient(id);
-        await client.UploadAsync(new BinaryData(data), new Azure.Storage.Blobs.Models.BlobUploadOptions { HttpHeaders = new Azure.Storage.Blobs.Models.BlobHttpHeaders { ContentType = type } });
-        return client.Uri.ToString();
+    private async Task<string> UploadToBlobAsync(string id, byte[] data, string type){
+        var ext = type switch { "application/pdf" => ".pdf", "application/json" => ".json", _ => ".docx" };
+        var redisKey = $"file_{id}{ext}";
+        logger.LogInformation("Azure Blob not configured. Storing {Type} in Redis with key: {Key}", type, redisKey);
+        var options = new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) };
+        await cache.SetAsync(redisKey, data, options);
+        logger.LogInformation("Successfully stored in Redis. Size: {Size} KB", data.Length / 1024);
+        return $"redis://{redisKey}";
     }
 
     private async Task<ExportJob> CreateJobAsync(int uid, ExportRequest req, ExportFormat f) {

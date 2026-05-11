@@ -24,6 +24,7 @@
     <PackageReference Include="Azure.Storage.Blobs" Version="12.23.0" />
     <!-- Async messaging -->
     <PackageReference Include="MassTransit.RabbitMQ" Version="8.3.6" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.11" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
   </ItemGroup>
 

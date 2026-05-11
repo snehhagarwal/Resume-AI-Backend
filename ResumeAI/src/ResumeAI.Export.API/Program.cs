@@ -20,6 +20,13 @@ builder.Services.AddScoped<INotificationPublisher, HttpNotificationPublisher>();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
 
+// ─── Redis Cache ─────────────────────────────────────────────────
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration["Redis:ConnectionString"] ?? "localhost:6379";
+    options.InstanceName = "ResumeAI_Export_";
+});
+
 // ─── Notification internal client ────────────────────────────────
 builder.Services.AddHttpClient("Notification", client =>
 {
