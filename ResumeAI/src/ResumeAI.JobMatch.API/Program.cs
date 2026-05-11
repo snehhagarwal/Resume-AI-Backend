@@ -28,7 +28,7 @@ builder.Services.AddHttpClient("Notification", client =>
     var baseUrl = builder.Configuration["Services:NotificationBaseUrl"]
                   ?? "http://localhost:5008";
     client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
-    client.Timeout = TimeSpan.FromSeconds(50); // Increased from 5s — Render cold starts can take 30-50s
+    client.Timeout = TimeSpan.FromSeconds(30); // Increased from 5s — Render cold starts can take 30-50s
 });
 
 // ─── Polly Policies ─────────────────────────────────────────────
