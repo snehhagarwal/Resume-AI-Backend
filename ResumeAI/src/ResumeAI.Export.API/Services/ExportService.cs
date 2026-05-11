@@ -13,6 +13,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Distributed;
+using ResumeAI.Export.API.Models;
 
 namespace ResumeAI.Export.API.Services;
 
