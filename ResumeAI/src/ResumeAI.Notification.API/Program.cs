@@ -10,6 +10,9 @@ using ResumeAI.Notification.API.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Prevent .NET from mapping "sub" to ClaimTypes.NameIdentifier
+System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+
 builder.Services.AddDbContext<NotificationDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("NotificationDb")));
 

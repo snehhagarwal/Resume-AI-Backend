@@ -13,5 +13,9 @@ namespace ResumeAI.Notification.API.Hubs;
 public sealed class JwtUserIdProvider : IUserIdProvider
 {
     public string? GetUserId(HubConnectionContext connection)
-        => connection.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+    {
+        // Check for both the standard ClaimTypes and the raw JWT "sub" claim
+        return connection.User?.FindFirstValue(ClaimTypes.NameIdentifier) 
+            ?? connection.User?.FindFirstValue("sub");
+    }
 }
