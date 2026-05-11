@@ -152,6 +152,7 @@ public class NotificationService(
             email.Body = new TextPart("html") { Text = body };
 
             using var smtp = new SmtpClient();
+            smtp.Timeout = 30000; // 30 second timeout
             
             // Use SslOnConnect for port 465, StartTls for others (like 587)
             var options = smtpPort == 465 
