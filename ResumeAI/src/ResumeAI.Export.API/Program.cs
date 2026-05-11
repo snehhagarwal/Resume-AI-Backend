@@ -3,6 +3,8 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Polly;
+using Polly.Extensions.Http;
 using ResumeAI.Export.API.Data;
 using ResumeAI.Export.API.Interfaces;
 using ResumeAI.Export.API.Repositories;

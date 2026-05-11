@@ -3,6 +3,8 @@ using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Polly;
+using Polly.Extensions.Http;
 using ResumeAI.AI.API.Clients;
 using ResumeAI.AI.API.Data;
 using ResumeAI.AI.API.Repositories;

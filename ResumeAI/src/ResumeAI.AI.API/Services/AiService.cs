@@ -8,8 +8,6 @@ using ResumeAI.AI.API.Repositories;
 using ResumeAI.AI.API.Interfaces;
 using ResumeAI.Shared.DTOs;
 using ResumeAI.Shared.Enums;
-
-using ResumeAI.Shared.Enums;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 
