@@ -43,8 +43,18 @@ public class NotificationService(
         {
             if (!string.IsNullOrEmpty(recipientEmail))
             {
-                // Run email sending in the background so it doesn't delay the real-time notification
-                _ = Task.Run(async () => await SendEmailAsync(recipientId, recipientEmail, title, message));
+                // Run email sending in the background and log errors if they occur
+                _ = Task.Run(async () => 
+                {
+                    try 
+                    {
+                        await SendEmailAsync(recipientId, recipientEmail, title, message);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Background email delivery failed for recipient {RecipientId}", recipientId);
+                    }
+                });
             }
             else if (channel == NotificationChannel.EMAIL)
             {
