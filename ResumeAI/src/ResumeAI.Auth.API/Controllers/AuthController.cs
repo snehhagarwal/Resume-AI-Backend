@@ -12,7 +12,7 @@ namespace ResumeAI.Auth.API.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController(IAuthService authService) : ControllerBase
+public class AuthController(IAuthService authService, ILogger<AuthController> logger) : ControllerBase
 {
     private int CurrentUserId =>
         int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -248,6 +248,7 @@ public class AuthController(IAuthService authService) : ControllerBase
 
         try
         {
+            logger.LogInformation("Processing OAuth callback for provider: {Provider}", authProvider);
             var response = await authService.OAuthLoginAsync(authProvider, email, fullName);
 
             // Discard the transient cookie — client now holds our JWT.
@@ -259,10 +260,12 @@ public class AuthController(IAuthService authService) : ControllerBase
                 ? ru ?? "/"
                 : "/";
 
+            logger.LogInformation("OAuth login successful for {Email}. Redirecting to frontend.", email);
             return Redirect($"{frontendBase}/auth/callback?token={Uri.EscapeDataString(response.Token)}&returnUrl={Uri.EscapeDataString(returnUrl)}");
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            logger.LogError(ex, "OAuth login failed for {Email} using {Provider}. Error: {Message}", email, authProvider, ex.Message);
             return Redirect($"{frontendBase}/auth/callback?error=login_failed");
         }
     }
