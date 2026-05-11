@@ -43,7 +43,8 @@ public class NotificationService(
         {
             if (!string.IsNullOrEmpty(recipientEmail))
             {
-                await SendEmailAsync(recipientId, recipientEmail, title, message);
+                // Run email sending in the background so it doesn't delay the real-time notification
+                _ = Task.Run(async () => await SendEmailAsync(recipientId, recipientEmail, title, message));
             }
             else if (channel == NotificationChannel.EMAIL)
             {
@@ -141,7 +142,13 @@ public class NotificationService(
             email.Body = new TextPart("html") { Text = body };
 
             using var smtp = new SmtpClient();
-            await smtp.ConnectAsync(smtpHost, smtpPort, SecureSocketOptions.StartTls);
+            
+            // Use SslOnConnect for port 465, StartTls for others (like 587)
+            var options = smtpPort == 465 
+                ? SecureSocketOptions.SslOnConnect 
+                : SecureSocketOptions.StartTls;
+
+            await smtp.ConnectAsync(smtpHost, smtpPort, options);
             await smtp.AuthenticateAsync(smtpUser, smtpPass);
             await smtp.SendAsync(email);
             await smtp.DisconnectAsync(true);
