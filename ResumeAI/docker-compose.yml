@@ -33,6 +33,7 @@ services:
     ports:
       - "9001:8080"
     environment:
+      ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__AuthDb: "Host=postgres;Database=resumeai_auth;Username=postgres;Password=${POSTGRES_PASSWORD};"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: ResumeAI
@@ -51,6 +52,7 @@ services:
     ports:
       - "9002:8080"
     environment:
+      ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__ResumeDb: "Host=postgres;Database=resumeai_resume;Username=postgres;Password=${POSTGRES_PASSWORD};"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: ResumeAI
@@ -65,6 +67,7 @@ services:
     ports:
       - "9003:8080"
     environment:
+      ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__SectionDb: "Host=postgres;Database=resumeai_section;Username=postgres;Password=${POSTGRES_PASSWORD};"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: ResumeAI
@@ -79,6 +82,7 @@ services:
     ports:
       - "9004:8080"
     environment:
+      ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__AiDb: "Host=postgres;Database=resumeai_ai;Username=postgres;Password=${POSTGRES_PASSWORD};"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: ResumeAI
@@ -101,6 +105,7 @@ services:
     ports:
       - "9005:8080"
     environment:
+      ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__TemplateDb: "Host=postgres;Database=resumeai_template;Username=postgres;Password=${POSTGRES_PASSWORD};"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: ResumeAI
@@ -115,6 +120,7 @@ services:
     ports:
       - "9006:8080"
     environment:
+      ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__ExportDb: "Host=postgres;Database=resumeai_export;Username=postgres;Password=${POSTGRES_PASSWORD};"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: ResumeAI
@@ -138,6 +144,7 @@ services:
     ports:
       - "9007:8080"
     environment:
+      ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__JobMatchDb: "Host=postgres;Database=resumeai_jobmatch;Username=postgres;Password=${POSTGRES_PASSWORD};"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: ResumeAI
@@ -154,6 +161,7 @@ services:
     ports:
       - "9008:8080"
     environment:
+      ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__NotificationDb: "Host=postgres;Database=resumeai_notification;Username=postgres;Password=${POSTGRES_PASSWORD};"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: ResumeAI
@@ -170,6 +178,7 @@ services:
     ports:
       - "9000:8080"
     environment:
+      ASPNETCORE_ENVIRONMENT: Development
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: ResumeAI
       Jwt__Audience: ResumeAI-Clients
