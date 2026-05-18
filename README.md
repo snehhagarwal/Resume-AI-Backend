@@ -123,11 +123,11 @@ Resume-AI follows a **Microservices Architecture** with the following principles
 ```
 ## Architecture Diagrams
 
-![High Level Design](https://raw.githubusercontent.com/snehhagarwal/Resume-AI-Backend/main/docs/ResumeAI_HLD.png)
+![High Level Design](ResumeAI/docs/ResumeAI_HLD.png)
 
-![Low Level Design](https://raw.githubusercontent.com/snehhagarwal/Resume-AI-Backend/main/docs/ResumeAI_LLD.png)
+![Low Level Design](ResumeAI/docs/ResumeAI_LLD.png)
 
-![Use Case Diagram](https://raw.githubusercontent.com/snehhagarwal/Resume-AI-Backend/main/docs/ResumeAI_UseCase.png)
+![Use Case Diagram](ResumeAI/docs/ResumeAI_UseCase.png)
 
 ### Microservice Communication Flow
 
