@@ -121,6 +121,16 @@ Resume-AI follows a **Microservices Architecture** with the following principles
    │   DBs    │   │             │  │            │ │            │
    └──────────┘   └─────────────┘  └────────────┘ └────────────┘
 ```
+## Architecture Diagrams
+
+### High Level Design
+![High Level Design](docs/ResumeAI_HLD.png)
+
+### Low Level Design
+![Low Level Design](docs/ResumeAI_LLD.png)
+
+### Use Case Diagram
+![Use Case Diagram](docs/ResumeAI_UseCase.png)
 
 ### Microservice Communication Flow
 
